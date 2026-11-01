@@ -1,60 +1,71 @@
-"""Synthetic unit tests for v1.5 screening diagnostics."""
+"""Synthetic regression tests for train-only selection and matched Ridge IC."""
+
 import numpy as np
 import pandas as pd
-from factor_research.selection import conditional_rank_ic, train_redundancy_groups
+
+from factor_selection.selection import compare_ridge, select_features
 
 
-def test_conditional_rank_ic_perfect_rank() -> None:
-    """Description: Verify positive monotone candidate-label association.
+def make_panel(seed: int = 10) -> pd.DataFrame:
+    """Create deterministic synthetic stock-date factor observations.
 
+    Description:
+        Simulate two predictors and a weakly informative return label.
     Parameters:
-        None: Uses synthetic panel.
+        seed (int): Random generator seed.
     Returns:
-        None: Asserts exact correlation behavior.
+        pd.DataFrame: Unique stock-date panel.
     Notes:
-        No project data is needed.
+        These data are not empirical market observations.
     """
-    d = pd.DataFrame(
-        {
-            'signal_date': pd.Timestamp('2020-01-02'),
-            'x': np.arange(50),
-            'research_label_5d': np.arange(50),
-        }
-    )
-    assert abs(conditional_rank_ic(d,'x',[],30).conditional_rank_ic.iloc[0]-1)<1e-12
+    rng = np.random.default_rng(seed)
+    dates = pd.bdate_range("2019-01-01", periods=25)
+    index = pd.MultiIndex.from_product([dates, [f"S{i:03d}" for i in range(60)]],
+                                       names=["datetime", "instrument"])
+    base = rng.normal(size=len(index))
+    extra = rng.normal(size=len(index))
+    return pd.DataFrame({"BASE": base, "EXTRA": extra, "DUP": base,
+                         "label_5d": base + extra + rng.normal(size=len(index))}, index=index)
 
 
-def test_residualized_duplicate_is_uninformative() -> None:
-    """Description: Ensure a factor fully explained by a control has undefined incremental correlation.
+def test_train_only_selection_and_redundancy() -> None:
+    """Verify redundant and registry-excluded candidates are not selected.
 
+    Description:
+        Check selection decisions using synthetic training observations.
     Parameters:
-        None: Uses synthetic duplicate factors.
+        None: Uses locally generated synthetic data.
     Returns:
-        None: Asserts residual correlation is NaN.
+        None: Assertions check selection behavior.
     Notes:
-        Duplicate factors cannot add independent rank information.
+        Thresholds are fixed before calling the selection function.
     """
-    d = pd.DataFrame(
-        {
-            'signal_date': pd.Timestamp('2020-01-02'),
-            'x': np.arange(50),
-            'z': np.arange(50),
-            'research_label_5d': np.arange(50),
-        }
-    )
-    assert np.isnan(conditional_rank_ic(d,'x',['z'],30).conditional_rank_ic.iloc[0])
+    panel = make_panel()
+    registry = pd.DataFrame({"factor": ["EXTRA", "DUP"], "excluded": [False, False]})
+    result = select_features(panel, ["BASE"], ["EXTRA", "DUP"], registry,
+                             max_features=2, min_days=10)
+    assert result.set_index("factor").loc["EXTRA", "selected"]
+    assert not result.set_index("factor").loc["DUP", "selected"]
 
 
-def test_connected_components() -> None:
-    """Description: Verify correlation graph components and isolated factors.
+def test_matched_ridge_and_delta_identity() -> None:
+    """Verify both models use identical Validation observations.
 
+    Description:
+        Check daily IC differences and row counts after missing-value filtering.
     Parameters:
-        None: Uses a synthetic correlation matrix.
+        None: Uses synthetic data with one missing candidate value.
     Returns:
-        None: Asserts group membership.
+        None: Assertions verify matched-sample model evaluation.
     Notes:
-        This is not a test of statistical significance.
+        No model is fitted on Validation labels.
     """
-    m = pd.DataFrame([[1,.9,.1],[.9,1,.2],[.1,.2,1]],index=['a','b','c'],columns=['a','b','c'])
-    g = train_redundancy_groups(m,.8).set_index('factor').redundancy_group
-    assert g['a']==g['b'] and g['a']!=g['c']
+    panel = make_panel()
+    dates = panel.index.get_level_values("datetime")
+    train = panel.loc[dates <= dates.unique()[14]]
+    validation = panel.loc[dates > dates.unique()[14]].copy()
+    validation.iloc[0, validation.columns.get_loc("EXTRA")] = np.nan
+    daily, summary = compare_ridge(train, validation, ["BASE"], ["EXTRA"])
+    assert (daily["n_stocks"] == 59).sum() == 1
+    assert np.allclose(daily["delta_ic"], daily["extended"] - daily["baseline"])
+    assert set(summary["factor"]) == {"baseline", "extended", "delta_ic"}
