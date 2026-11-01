@@ -1,7 +1,7 @@
 """Description: Unit tests for non-destructive historical source inventory."""
 import json
 from pathlib import Path
-from pit_audit import audit, classify_fields
+from factor_neutralization.pit_audit import audit, classify_fields
 
 
 def test_classify_fields():

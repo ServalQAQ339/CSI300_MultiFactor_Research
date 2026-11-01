@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 
-SOURCE = Path(__file__).resolve().parent / 'factor_engine.py'
+SOURCE = Path(__file__).resolve().parent.parent / 'factors' / 'factor_engine.py'
 OUTPUT = Path(__file__).resolve().parent / 'original27_registry_verified_v1.json'
 BASE = {
     'OPEN_CLOSE_RATIO': ('opening / close - 1', 'open,close', 'candlestick'),
