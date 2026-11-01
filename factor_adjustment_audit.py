@@ -12,7 +12,9 @@ THRESHOLDS = (0.0001, 0.001, 0.01, 0.05)
 
 def load_membership_stocks(path):
     """Description: Read historical CSI300 constituent identifiers. Parameters: path (Path): Qlib tab-separated interval file. Returns: list[str]: Sorted unique stock identifiers. Notes: Intervals are used only to select stocks, not to assert publication-time availability."""
-    table = pd.read_csv(path, sep='\t', header=None, names=['instrument', 'start', 'end'], dtype=str)
+    table = pd.read_csv(
+        path, sep='\t', header=None, names=['instrument', 'start', 'end'], dtype=str
+    )
     if table.empty or table['instrument'].isna().any():
         raise ValueError('Membership file is empty or contains missing instruments')
     return sorted(table['instrument'].unique().tolist())
@@ -43,14 +45,29 @@ def analyze_factor_panel(panel, calendar):
     d['consecutive'] = d['calendar_gap'].eq(1) & d['previous_factor'].notna() & d['factor_valid']
     d['relative_change'] = (d['valid_factor'] / d['previous_factor'] - 1).where(d['consecutive'])
     d['abs_change'] = d['relative_change'].abs()
-    d['price_missing'] = d[['open', 'close', 'volume']].apply(lambda s: ~np.isfinite(pd.to_numeric(s, errors='coerce'))).any(axis=1)
+    d['price_missing'] = (
+        d[['open', 'close', 'volume']]
+        .apply(lambda s: ~np.isfinite(pd.to_numeric(s, errors='coerce')))
+        .any(axis=1)
+    )
     return d
 
 
 def summarize_changes(audit, thresholds=THRESHOLDS):
     """Description: Summarize strict consecutive-day factor movements by threshold. Parameters: audit (DataFrame): Output of analyze_factor_panel. thresholds (sequence[float]): Absolute relative-change cutoffs. Returns: DataFrame: Threshold, eligible comparisons, and exceedance counts. Notes: Counts are observations, not verified corporate actions."""
     values = audit.loc[audit['consecutive'], 'abs_change'].dropna()
-    return pd.DataFrame([{'threshold': float(t), 'threshold_pct': 100 * float(t), 'eligible_comparisons': int(len(values)), 'exceedances': int(values.gt(t).sum()), 'exceedance_rate': float(values.gt(t).mean()) if len(values) else np.nan} for t in thresholds])
+    return pd.DataFrame(
+        [
+            {
+                'threshold': float(t),
+                'threshold_pct': 100 * float(t),
+                'eligible_comparisons': int(len(values)),
+                'exceedances': int(values.gt(t).sum()),
+                'exceedance_rate': float(values.gt(t).mean()) if len(values) else np.nan,
+            }
+            for t in thresholds
+        ]
+    )
 
 
 def fetch_qlib(stocks, qlib_dir, start, end, batch_size=80):
@@ -60,10 +77,28 @@ def fetch_qlib(stocks, qlib_dir, start, end, batch_size=80):
     qlib.init(provider_uri=str(qlib_dir), region='cn')
     chunks = []
     for k in range(0, len(stocks), batch_size):
-        batch = D.features(stocks[k:k + batch_size], ['$factor', '$open', '$close', '$volume'], start_time=start, end_time=end).reset_index()
-        chunks.append(batch.rename(columns={'$factor': 'factor', '$open': 'open', '$close': 'close', '$volume': 'volume'}))
+        batch = D.features(
+            stocks[k : k + batch_size],
+            ['$factor', '$open', '$close', '$volume'],
+            start_time=start,
+            end_time=end,
+        ).reset_index()
+        chunks.append(
+            batch.rename(
+                columns={
+                    '$factor': 'factor',
+                    '$open': 'open',
+                    '$close': 'close',
+                    '$volume': 'volume',
+                }
+            )
+        )
         print(f'Fetched {min(k + batch_size, len(stocks))}/{len(stocks)} instruments', flush=True)
-    return pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame(columns=['instrument', 'datetime', 'factor', 'open', 'close', 'volume'])
+    return (
+        pd.concat(chunks, ignore_index=True)
+        if chunks
+        else pd.DataFrame(columns=['instrument', 'datetime', 'factor', 'open', 'close', 'volume'])
+    )
 
 
 def run(qlib_dir, root, start, end):
@@ -78,11 +113,44 @@ def run(qlib_dir, root, start, end):
     output = root / 'reports' / 'factor_adjustment_audit'
     output.mkdir(parents=True, exist_ok=True)
     threshold.to_csv(output / 'factor_change_thresholds.csv', index=False)
-    audit.nlargest(200, 'abs_change')[['instrument', 'datetime', 'previous_factor', 'factor', 'relative_change', 'calendar_gap', 'price_missing']].to_csv(output / 'largest_factor_changes.csv', index=False)
-    audit.assign(year=audit['datetime'].dt.year).groupby('year').agg(observations=('instrument', 'size'), valid_factor=('factor_valid', 'sum'), consecutive_comparisons=('consecutive', 'sum'), price_missing=('price_missing', 'sum')).reset_index().to_csv(output / 'factor_audit_by_year.csv', index=False)
-    audit.loc[(audit['calendar_gap'].gt(1)) | (~audit['factor_valid']), ['instrument', 'datetime', 'factor', 'calendar_gap', 'factor_valid', 'price_missing']].to_csv(output / 'factor_gap_or_invalid.csv', index=False)
-    summary = {'stocks': len(stocks), 'panel_rows': len(audit), 'consecutive_comparisons': int(audit['consecutive'].sum()), 'price_missing_rows': int(audit['price_missing'].sum()), 'invalid_factor_rows': int((~audit['factor_valid']).sum()), 'gap_rows': int(audit['calendar_gap'].gt(1).sum()), 'thresholds': threshold.to_dict(orient='records'), 'limitations': ['Threshold exceedances are not verified corporate actions', 'Factor adjustment convention and raw prices require independent source checks', 'Membership publication-time PIT remains unverified']}
-    (output / 'factor_audit_summary.json').write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8')
+    audit.nlargest(200, 'abs_change')[
+        [
+            'instrument',
+            'datetime',
+            'previous_factor',
+            'factor',
+            'relative_change',
+            'calendar_gap',
+            'price_missing',
+        ]
+    ].to_csv(output / 'largest_factor_changes.csv', index=False)
+    audit.assign(year=audit['datetime'].dt.year).groupby('year').agg(
+        observations=('instrument', 'size'),
+        valid_factor=('factor_valid', 'sum'),
+        consecutive_comparisons=('consecutive', 'sum'),
+        price_missing=('price_missing', 'sum'),
+    ).reset_index().to_csv(output / 'factor_audit_by_year.csv', index=False)
+    audit.loc[
+        (audit['calendar_gap'].gt(1)) | (~audit['factor_valid']),
+        ['instrument', 'datetime', 'factor', 'calendar_gap', 'factor_valid', 'price_missing'],
+    ].to_csv(output / 'factor_gap_or_invalid.csv', index=False)
+    summary = {
+        'stocks': len(stocks),
+        'panel_rows': len(audit),
+        'consecutive_comparisons': int(audit['consecutive'].sum()),
+        'price_missing_rows': int(audit['price_missing'].sum()),
+        'invalid_factor_rows': int((~audit['factor_valid']).sum()),
+        'gap_rows': int(audit['calendar_gap'].gt(1).sum()),
+        'thresholds': threshold.to_dict(orient='records'),
+        'limitations': [
+            'Threshold exceedances are not verified corporate actions',
+            'Factor adjustment convention and raw prices require independent source checks',
+            'Membership publication-time PIT remains unverified',
+        ],
+    }
+    (output / 'factor_audit_summary.json').write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8'
+    )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     print(f'Reports: {output}')
     return summary

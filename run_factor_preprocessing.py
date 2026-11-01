@@ -3,7 +3,11 @@
 from pathlib import Path
 import pandas as pd
 from config import DATA_ROOT
-from factors.factor_preprocessor import PreprocessConfig, preprocess_factor_panel, compare_prefix_invariance
+from factors.factor_preprocessor import (
+    PreprocessConfig,
+    preprocess_factor_panel,
+    compare_prefix_invariance,
+)
 
 RESEARCH_START = "2015-04-01"
 INPUT_DIR = DATA_ROOT / "data" / "factors_enhanced"
@@ -39,12 +43,33 @@ def run_preprocessing(methods: tuple[str, ...] = METHODS, overwrite: bool = Fals
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = output_dir / file.name
             if output_path.exists() and not overwrite:
-                summaries.append({"method": method, "year": int(file.stem.split("_")[-1]), "status": "cached", "path": str(output_path)})
+                summaries.append(
+                    {
+                        "method": method,
+                        "year": int(file.stem.split("_")[-1]),
+                        "status": "cached",
+                        "path": str(output_path),
+                    }
+                )
                 continue
-            transformed = preprocess_factor_panel(panel, PreprocessConfig(method=method, min_valid=MIN_VALID))
+            transformed = preprocess_factor_panel(
+                panel, PreprocessConfig(method=method, min_valid=MIN_VALID)
+            )
             transformed.to_parquet(output_path, engine="pyarrow", compression="snappy")
-            summaries.append({"method": method, "year": int(file.stem.split("_")[-1]), "status": "generated", "rows": len(transformed), "mean_coverage": float(transformed.notna().mean().mean()), "path": str(output_path)})
-            print(f"{method} {file.stem}: {len(transformed):,} rows, coverage={transformed.notna().mean().mean():.4f}", flush=True)
+            summaries.append(
+                {
+                    "method": method,
+                    "year": int(file.stem.split("_")[-1]),
+                    "status": "generated",
+                    "rows": len(transformed),
+                    "mean_coverage": float(transformed.notna().mean().mean()),
+                    "path": str(output_path),
+                }
+            )
+            print(
+                f"{method} {file.stem}: {len(transformed):,} rows, coverage={transformed.notna().mean().mean():.4f}",
+                flush=True,
+            )
     report = pd.DataFrame(summaries)
     report_dir = DATA_ROOT / "reports" / "factor_preprocessing"
     report_dir.mkdir(parents=True, exist_ok=True)

@@ -27,7 +27,12 @@ def validate_registry(registry: dict) -> dict:
         errors.append('Missing source or research status')
     if any(row.get('formula_verified') and not row.get('formula') for row in rows):
         errors.append('Verified formula has no expression')
-    return {'passed': not errors, 'factor_count': len(rows), 'formula_verified_count': sum(bool(r.get('formula_verified')) for r in rows), 'errors': errors}
+    return {
+        'passed': not errors,
+        'factor_count': len(rows),
+        'formula_verified_count': sum(bool(r.get('formula_verified')) for r in rows),
+        'errors': errors,
+    }
 
 
 def validate_parquet_columns(path: str | Path, registry: dict) -> dict:
@@ -46,4 +51,10 @@ def validate_parquet_columns(path: str | Path, registry: dict) -> dict:
     actual = set(frame.columns)
     missing, extra = sorted(expected - actual), sorted(actual - expected)
     index_names = list(frame.index.names)
-    return {'passed': not missing and not extra and index_names == ['datetime', 'instrument'], 'missing': missing, 'unexpected': extra, 'index_names': index_names, 'rows': len(frame)}
+    return {
+        'passed': not missing and not extra and index_names == ['datetime', 'instrument'],
+        'missing': missing,
+        'unexpected': extra,
+        'index_names': index_names,
+        'rows': len(frame),
+    }

@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import pandas as pd
 import qlib
@@ -63,7 +62,9 @@ def load_annual_panel(year: int) -> pd.DataFrame:
     universe = D.instruments(market="csi300")
     fields = ["$open", "$high", "$low", "$close", "$volume", "$factor"]
 
-    df = D.features(instruments=universe, fields=fields, start_time=start_date, end_time=end_date, freq="day")
+    df = D.features(
+        instruments=universe, fields=fields, start_time=start_date, end_time=end_date, freq="day"
+    )
 
     df = df.rename(columns={field: field.replace("$", "") for field in fields})
     df = df.reorder_levels(["datetime", "instrument"]).sort_index()
@@ -86,7 +87,6 @@ def save_annual_panel(df: pd.DataFrame, year: int) -> Path:
     output_path = DATA_OUTPUT_DIR / f"csi300_daily_{year}.parquet"
     df.to_parquet(output_path, engine="pyarrow", compression="snappy")
     return output_path
-
 
 
 def build_daily_dataset(overwrite: bool = False) -> pd.DataFrame:
@@ -123,9 +123,17 @@ def build_daily_dataset(overwrite: bool = False) -> pd.DataFrame:
 
             save_annual_panel(df, year)
 
-        summary.append({"year": year, "rows": len(df), "stocks": df.index.get_level_values("instrument").nunique(), "first_date": df.index.get_level_values("datetime").min(), "last_date": df.index.get_level_values("datetime").max(), "output_path": str(output_path)})
+        summary.append(
+            {
+                "year": year,
+                "rows": len(df),
+                "stocks": df.index.get_level_values("instrument").nunique(),
+                "first_date": df.index.get_level_values("datetime").min(),
+                "last_date": df.index.get_level_values("datetime").max(),
+                "output_path": str(output_path),
+            }
+        )
         print(f"Completed {year}: {len(df):,} observations", flush=True)
         del df
 
     return pd.DataFrame(summary)
-

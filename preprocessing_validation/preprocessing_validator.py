@@ -20,18 +20,32 @@ def _compare(reference: pd.DataFrame, candidate: pd.DataFrame, atol: float = 1e-
     Returns:
         dict: Counts of index, column, missingness, and numerical discrepancies.
     """
-    keys_match = reference.index.equals(candidate.index) and reference.columns.equals(candidate.columns)
+    keys_match = reference.index.equals(candidate.index) and reference.columns.equals(
+        candidate.columns
+    )
     if not keys_match:
-        return {"keys_match": False, "missing_mismatch": -1, "value_mismatch": -1, "max_abs_difference": np.nan}
+        return {
+            "keys_match": False,
+            "missing_mismatch": -1,
+            "value_mismatch": -1,
+            "max_abs_difference": np.nan,
+        }
     a, b = reference.to_numpy(dtype=float), candidate.to_numpy(dtype=float)
     finite_a, finite_b = np.isfinite(a), np.isfinite(b)
     missing_mismatch = int(np.count_nonzero(finite_a != finite_b))
     both = finite_a & finite_b
     differences = np.abs(a[both] - b[both])
-    return {"keys_match": True, "missing_mismatch": missing_mismatch, "value_mismatch": int(np.count_nonzero(differences > atol)), "max_abs_difference": float(differences.max()) if differences.size else 0.0}
+    return {
+        "keys_match": True,
+        "missing_mismatch": missing_mismatch,
+        "value_mismatch": int(np.count_nonzero(differences > atol)),
+        "max_abs_difference": float(differences.max()) if differences.size else 0.0,
+    }
 
 
-def validate_one_year(panel: pd.DataFrame, method: str, saved_path: Path | None = None, min_valid: int = 10) -> list[dict]:
+def validate_one_year(
+    panel: pd.DataFrame, method: str, saved_path: Path | None = None, min_valid: int = 10
+) -> list[dict]:
     """Description:
         Run deterministic preprocessing bias diagnostics for one annual factor panel.
 
@@ -72,15 +86,32 @@ def validate_one_year(panel: pd.DataFrame, method: str, saved_path: Path | None 
         Returns:
             None: Appends a record to the result list.
         """
-        passed = comparison["keys_match"] and comparison["missing_mismatch"] == 0 and comparison["value_mismatch"] == 0
-        records.append({"method": method, "test": test, "passed": bool(passed), "cutoff": str(cutoff.date()), "rows_checked": len(historical), **comparison, "detail": detail})
+        passed = (
+            comparison["keys_match"]
+            and comparison["missing_mismatch"] == 0
+            and comparison["value_mismatch"] == 0
+        )
+        records.append(
+            {
+                "method": method,
+                "test": test,
+                "passed": bool(passed),
+                "cutoff": str(cutoff.date()),
+                "rows_checked": len(historical),
+                **comparison,
+                "detail": detail,
+            }
+        )
 
     add("prefix_invariance", _compare(full.loc[historical.index], prefix_reference))
     modified = panel.copy()
     if future_mask.any():
         modified.loc[future_mask, :] = 123456.789
     modified_result = preprocess_factor_panel(modified, config)
-    add("future_perturbation", _compare(full.loc[historical.index], modified_result.loc[historical.index]))
+    add(
+        "future_perturbation",
+        _compare(full.loc[historical.index], modified_result.loc[historical.index]),
+    )
 
     target_date = dates[len(dates) // 3]
     date_mask = panel.index.get_level_values("datetime") == target_date
@@ -92,7 +123,20 @@ def validate_one_year(panel: pd.DataFrame, method: str, saved_path: Path | None 
     actual_valid = np.isfinite(full.to_numpy(dtype=float))
     created = int(np.count_nonzero(~expected_valid & actual_valid))
     removed = int(np.count_nonzero(expected_valid & ~actual_valid))
-    records.append({"method": method, "test": "missingness_integrity", "passed": created == 0, "cutoff": "", "rows_checked": len(panel), "keys_match": True, "missing_mismatch": created, "value_mismatch": removed, "max_abs_difference": 0.0, "detail": f"new_valid_from_missing={created}; valid_to_missing={removed} (allowed for min_valid/zero IQR)"})
+    records.append(
+        {
+            "method": method,
+            "test": "missingness_integrity",
+            "passed": created == 0,
+            "cutoff": "",
+            "rows_checked": len(panel),
+            "keys_match": True,
+            "missing_mismatch": created,
+            "value_mismatch": removed,
+            "max_abs_difference": 0.0,
+            "detail": f"new_valid_from_missing={created}; valid_to_missing={removed} (allowed for min_valid/zero IQR)",
+        }
+    )
 
     rank_violations = 0
     for date in dates:
@@ -107,18 +151,46 @@ def validate_one_year(panel: pd.DataFrame, method: str, saved_path: Path | None 
             x, y = a[mask][order], b[mask][order]
             rank_violations += int(np.count_nonzero(np.diff(y)[np.diff(x) > 0] <= -1e-10))
             rank_violations += int(np.count_nonzero(np.abs(np.diff(y)[np.diff(x) == 0]) > 1e-10))
-    records.append({"method": method, "test": "rank_preservation", "passed": rank_violations == 0, "cutoff": "", "rows_checked": len(panel), "keys_match": True, "missing_mismatch": 0, "value_mismatch": rank_violations, "max_abs_difference": 0.0, "detail": "Checks monotonicity and equality of ties"})
+    records.append(
+        {
+            "method": method,
+            "test": "rank_preservation",
+            "passed": rank_violations == 0,
+            "cutoff": "",
+            "rows_checked": len(panel),
+            "keys_match": True,
+            "missing_mismatch": 0,
+            "value_mismatch": rank_violations,
+            "max_abs_difference": 0.0,
+            "detail": "Checks monotonicity and equality of ties",
+        }
+    )
 
     if saved_path is not None:
         if not saved_path.exists():
-            records.append({"method": method, "test": "saved_output", "passed": False, "cutoff": "", "rows_checked": 0, "keys_match": False, "missing_mismatch": -1, "value_mismatch": -1, "max_abs_difference": np.nan, "detail": f"Missing file: {saved_path}"})
+            records.append(
+                {
+                    "method": method,
+                    "test": "saved_output",
+                    "passed": False,
+                    "cutoff": "",
+                    "rows_checked": 0,
+                    "keys_match": False,
+                    "missing_mismatch": -1,
+                    "value_mismatch": -1,
+                    "max_abs_difference": np.nan,
+                    "detail": f"Missing file: {saved_path}",
+                }
+            )
         else:
             saved = pd.read_parquet(saved_path).sort_index()
             add("saved_output", _compare(full, saved), str(saved_path))
     return records
 
 
-def run_validation(data_root: Path, research_start: str = "2015-04-01", years: tuple[int, ...] | None = None) -> pd.DataFrame:
+def run_validation(
+    data_root: Path, research_start: str = "2015-04-01", years: tuple[int, ...] | None = None
+) -> pd.DataFrame:
     """Description:
         Validate all available enhanced factor files and preprocessed outputs.
 
@@ -150,7 +222,11 @@ def run_validation(data_root: Path, research_start: str = "2015-04-01", years: t
     report_dir = data_root / "reports" / "preprocessing_validation"
     report_dir.mkdir(parents=True, exist_ok=True)
     report.to_csv(report_dir / "preprocessing_validation.csv", index=False)
-    summary = report.groupby(["method", "test"], as_index=False).agg(checks=("passed", "size"), failed=("passed", lambda s: int((~s).sum())), total_value_mismatches=("value_mismatch", "sum"))
+    summary = report.groupby(["method", "test"], as_index=False).agg(
+        checks=("passed", "size"),
+        failed=("passed", lambda s: int((~s).sum())),
+        total_value_mismatches=("value_mismatch", "sum"),
+    )
     summary.to_csv(report_dir / "validation_summary.csv", index=False)
     print("\nVALIDATION SUMMARY\n" + summary.to_string(index=False), flush=True)
     return report

@@ -19,15 +19,38 @@ class TestPriceMissingnessAttribution(unittest.TestCase):
 
     def test_audit_deduplication(self):
         """Description: Verify two audit issues map to one key. Parameters: None. Returns: None. Notes: Issue labels remain available."""
-        audit = pd.DataFrame({'instrument': ['A', 'A'], 'datetime': ['2020-01-02'] * 2, 'issue': ['invalid_open', 'invalid_close']})
+        audit = pd.DataFrame(
+            {
+                'instrument': ['A', 'A'],
+                'datetime': ['2020-01-02'] * 2,
+                'issue': ['invalid_open', 'invalid_close'],
+            }
+        )
         result = prepare_audit(audit)
         self.assertEqual(len(result), 1)
         self.assertIn('invalid_open', result.iloc[0]['audit_issues'])
 
     def test_unmatched_and_matched(self):
         """Description: Verify missing Qlib keys differ from matched NaN fields. Parameters: None. Returns: None. Notes: No forward fill."""
-        keys = prepare_audit(pd.DataFrame({'instrument': ['A', 'B'], 'datetime': ['2020-01-02'] * 2, 'issue': ['invalid_open'] * 2}))
-        quotes = pd.DataFrame({'instrument': ['A'], 'datetime': pd.to_datetime(['2020-01-02']), '$open': [np.nan], '$close': [3.0], '$volume': [0.0], '$factor': [1.0]})
+        keys = prepare_audit(
+            pd.DataFrame(
+                {
+                    'instrument': ['A', 'B'],
+                    'datetime': ['2020-01-02'] * 2,
+                    'issue': ['invalid_open'] * 2,
+                }
+            )
+        )
+        quotes = pd.DataFrame(
+            {
+                'instrument': ['A'],
+                'datetime': pd.to_datetime(['2020-01-02']),
+                '$open': [np.nan],
+                '$close': [3.0],
+                '$volume': [0.0],
+                '$factor': [1.0],
+            }
+        )
         result = attribute_prices(keys, quotes).set_index('instrument')
         self.assertEqual(result.loc['A', 'open_state'], 'missing_value')
         self.assertEqual(result.loc['B', 'open_state'], 'missing_key')
@@ -35,8 +58,21 @@ class TestPriceMissingnessAttribution(unittest.TestCase):
 
     def test_duplicate_quote_rejected(self):
         """Description: Reject duplicate stock-date Qlib observations. Parameters: None. Returns: None. Notes: Prevents silent row multiplication."""
-        keys = prepare_audit(pd.DataFrame({'instrument': ['A'], 'datetime': ['2020-01-02'], 'issue': ['invalid_open']}))
-        quotes = pd.DataFrame({'instrument': ['A', 'A'], 'datetime': ['2020-01-02'] * 2, '$open': [1, 1], '$close': [1, 1], '$volume': [1, 1], '$factor': [1, 1]})
+        keys = prepare_audit(
+            pd.DataFrame(
+                {'instrument': ['A'], 'datetime': ['2020-01-02'], 'issue': ['invalid_open']}
+            )
+        )
+        quotes = pd.DataFrame(
+            {
+                'instrument': ['A', 'A'],
+                'datetime': ['2020-01-02'] * 2,
+                '$open': [1, 1],
+                '$close': [1, 1],
+                '$volume': [1, 1],
+                '$factor': [1, 1],
+            }
+        )
         with self.assertRaises(ValueError):
             attribute_prices(keys, quotes)
 

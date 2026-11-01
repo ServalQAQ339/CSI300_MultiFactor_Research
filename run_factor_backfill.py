@@ -4,6 +4,7 @@
 from config import DATA_OUTPUT_DIR, DATA_ROOT, END_DATE
 from factors.factor_backfill import run_backfilled_factor_pipeline
 
+
 #%%
 def run_complete_backfill(overwrite: bool = False):
     """Generate enhanced factors with pre-membership historical OHLCV.
@@ -24,9 +25,17 @@ def run_complete_backfill(overwrite: bool = False):
         from data.data_loader import initialize_qlib, get_trading_calendar
     initialize_qlib()
     calendar = get_trading_calendar("2014-01-01", END_DATE)
-    summary = run_backfilled_factor_pipeline(DATA_OUTPUT_DIR, DATA_ROOT / "data" / "factors_enhanced", calendar, 2015, int(END_DATE[:4]), overwrite)
+    summary = run_backfilled_factor_pipeline(
+        DATA_OUTPUT_DIR,
+        DATA_ROOT / "data" / "factors_enhanced",
+        calendar,
+        2015,
+        int(END_DATE[:4]),
+        overwrite,
+    )
     print(summary.to_string(index=False))
     return summary
+
 
 #%%
 if __name__ == "__main__":

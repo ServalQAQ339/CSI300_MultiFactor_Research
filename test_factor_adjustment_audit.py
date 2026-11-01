@@ -11,7 +11,16 @@ class TestFactorAdjustmentAudit(unittest.TestCase):
     def setUp(self):
         """Description: Construct a four-day trading calendar with a missing stock observation. Parameters: None. Returns: None. Notes: Gap must not be interpreted as a one-day change."""
         self.calendar = pd.to_datetime(['2020-01-02', '2020-01-03', '2020-01-06', '2020-01-07'])
-        self.panel = pd.DataFrame({'instrument': ['A', 'A', 'A'], 'datetime': pd.to_datetime(['2020-01-02', '2020-01-03', '2020-01-07']), 'factor': [1.0, 1.00001, 1.2], 'open': [10., np.nan, 12.], 'close': [10., np.nan, 12.], 'volume': [100., np.nan, 100.]})
+        self.panel = pd.DataFrame(
+            {
+                'instrument': ['A', 'A', 'A'],
+                'datetime': pd.to_datetime(['2020-01-02', '2020-01-03', '2020-01-07']),
+                'factor': [1.0, 1.00001, 1.2],
+                'open': [10.0, np.nan, 12.0],
+                'close': [10.0, np.nan, 12.0],
+                'volume': [100.0, np.nan, 100.0],
+            }
+        )
 
     def test_calendar_gap_excluded(self):
         """Description: Ensure multi-day gaps are excluded. Parameters: None. Returns: None."""

@@ -10,12 +10,28 @@ class TestPriceAudit(unittest.TestCase):
 
     def test_invalid_factor(self):
         """Description: Reject zero adjustment factors. Parameters: None. Returns: None. Notes: Recovered raw prices must not be considered valid."""
-        frame = pd.DataFrame({'instrument': ['SH600000'], 'datetime': ['2020-01-02'], 'open': [10.0], 'close': [10.0], 'factor': [0.0]})
+        frame = pd.DataFrame(
+            {
+                'instrument': ['SH600000'],
+                'datetime': ['2020-01-02'],
+                'open': [10.0],
+                'close': [10.0],
+                'factor': [0.0],
+            }
+        )
         issues, _ = summarize_price_audit(frame)
         self.assertIn('invalid_factor', issues['issue'].tolist())
 
     def test_factor_change(self):
         """Description: Flag a factor transition as an audit candidate. Parameters: None. Returns: None. Notes: A change alone is not a confirmed error."""
-        frame = pd.DataFrame({'instrument': ['SH600000'] * 2, 'datetime': ['2020-01-02', '2020-01-03'], 'open': [10.0, 11.0], 'close': [10.0, 11.0], 'factor': [0.5, 0.6]})
+        frame = pd.DataFrame(
+            {
+                'instrument': ['SH600000'] * 2,
+                'datetime': ['2020-01-02', '2020-01-03'],
+                'open': [10.0, 11.0],
+                'close': [10.0, 11.0],
+                'factor': [0.5, 0.6],
+            }
+        )
         _, changes = summarize_price_audit(frame)
         self.assertEqual(len(changes), 1)

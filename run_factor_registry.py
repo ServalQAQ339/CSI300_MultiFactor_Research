@@ -2,7 +2,12 @@
 from pathlib import Path
 import argparse
 import json
-from factor_registry import build_registry, validate_registry, validate_parquet_columns, write_registry
+from factor_registry import (
+    build_registry,
+    validate_registry,
+    validate_parquet_columns,
+    write_registry,
+)
 
 
 def main() -> None:
@@ -16,8 +21,14 @@ def main() -> None:
         Existing registry files are never overwritten without --overwrite.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output', default=r'D:\QuantResearch\CSI300_MultiFactor_Research\reports\factor_registry\original27_registry_v1.json')
-    parser.add_argument('--sample-parquet', default=r'D:\QuantResearch\CSI300_MultiFactor_Research\data\factors_preprocessed\raw\csi300_factors_2015.parquet')
+    parser.add_argument(
+        '--output',
+        default=r'D:\QuantResearch\CSI300_MultiFactor_Research\reports\factor_registry\original27_registry_v1.json',
+    )
+    parser.add_argument(
+        '--sample-parquet',
+        default=r'D:\QuantResearch\CSI300_MultiFactor_Research\data\factors_preprocessed\raw\csi300_factors_2015.parquet',
+    )
     parser.add_argument('--overwrite', action='store_true')
     args = parser.parse_args()
     registry = build_registry()

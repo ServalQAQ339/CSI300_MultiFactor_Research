@@ -7,7 +7,14 @@ from factors.factor_backfill import generate_backfilled_year
 from factors.factor_engine import DEFAULT_WINDOWS
 
 
-def compare_factor_frames(baseline: pd.DataFrame, enhanced: pd.DataFrame, price: pd.DataFrame, year: int, rtol: float = 1e-8, atol: float = 1e-10) -> tuple[pd.DataFrame, dict]:
+def compare_factor_frames(
+    baseline: pd.DataFrame,
+    enhanced: pd.DataFrame,
+    price: pd.DataFrame,
+    year: int,
+    rtol: float = 1e-8,
+    atol: float = 1e-10,
+) -> tuple[pd.DataFrame, dict]:
     """Compare yearly factor keys, coverage and previously valid values.
 
     Description:
@@ -30,15 +37,26 @@ def compare_factor_frames(baseline: pd.DataFrame, enhanced: pd.DataFrame, price:
         A strict improvement expectation is not imposed on recomputed windows.
     """
     for name, frame in (("baseline", baseline), ("enhanced", enhanced), ("price", price)):
-        if not isinstance(frame.index, pd.MultiIndex) or set(frame.index.names) != {"datetime", "instrument"} or frame.index.has_duplicates:
+        if (
+            not isinstance(frame.index, pd.MultiIndex)
+            or set(frame.index.names) != {"datetime", "instrument"}
+            or frame.index.has_duplicates
+        ):
             raise ValueError(f"Invalid or duplicate {name} index")
-    b, e, p = (frame.reorder_levels(["datetime", "instrument"]).sort_index() for frame in (baseline, enhanced, price))
+    b, e, p = (
+        frame.reorder_levels(["datetime", "instrument"]).sort_index()
+        for frame in (baseline, enhanced, price)
+    )
     same_columns = set(b.columns) == set(e.columns)
     if not same_columns:
-        raise ValueError(f"Factor column mismatch: baseline_only={set(b.columns)-set(e.columns)}, enhanced_only={set(e.columns)-set(b.columns)}")
+        raise ValueError(
+            f"Factor column mismatch: baseline_only={set(b.columns)-set(e.columns)}, enhanced_only={set(e.columns)-set(b.columns)}"
+        )
     keys_match = b.index.equals(e.index) and b.index.equals(p.index)
     if not keys_match:
-        raise ValueError(f"Index mismatch in {year}: baseline={len(b)}, enhanced={len(e)}, price={len(p)}")
+        raise ValueError(
+            f"Index mismatch in {year}: baseline={len(b)}, enhanced={len(e)}, price={len(p)}"
+        )
     factors = sorted(b.columns)
     metrics = []
     for factor in factors:
@@ -48,13 +66,52 @@ def compare_factor_frames(baseline: pd.DataFrame, enhanced: pd.DataFrame, price:
         both = valid_x & valid_y
         equal = np.isclose(x[both], y[both], rtol=rtol, atol=atol)
         diff = np.abs(x[both] - y[both])
-        metrics.append({"year": year, "factor": factor, "rows": len(b), "baseline_valid": int(valid_x.sum()), "enhanced_valid": int(valid_y.sum()), "baseline_coverage": float(valid_x.mean()), "enhanced_coverage": float(valid_y.mean()), "coverage_delta_pp": float(100 * (valid_y.mean() - valid_x.mean())), "recovered": int((~valid_x & valid_y).sum()), "lost": int((valid_x & ~valid_y).sum()), "both_valid": int(both.sum()), "changed_existing": int((~equal).sum()), "max_abs_diff_existing": float(diff.max()) if diff.size else np.nan, "baseline_inf": int(np.isinf(x).sum()), "enhanced_inf": int(np.isinf(y).sum())})
+        metrics.append(
+            {
+                "year": year,
+                "factor": factor,
+                "rows": len(b),
+                "baseline_valid": int(valid_x.sum()),
+                "enhanced_valid": int(valid_y.sum()),
+                "baseline_coverage": float(valid_x.mean()),
+                "enhanced_coverage": float(valid_y.mean()),
+                "coverage_delta_pp": float(100 * (valid_y.mean() - valid_x.mean())),
+                "recovered": int((~valid_x & valid_y).sum()),
+                "lost": int((valid_x & ~valid_y).sum()),
+                "both_valid": int(both.sum()),
+                "changed_existing": int((~equal).sum()),
+                "max_abs_diff_existing": float(diff.max()) if diff.size else np.nan,
+                "baseline_inf": int(np.isinf(x).sum()),
+                "enhanced_inf": int(np.isinf(y).sum()),
+            }
+        )
     details = pd.DataFrame(metrics)
-    summary = {"year": year, "rows": len(b), "factor_columns": len(factors), "keys_match": keys_match, "baseline_mean_coverage": float(details["baseline_coverage"].mean()), "enhanced_mean_coverage": float(details["enhanced_coverage"].mean()), "recovered_cells": int(details["recovered"].sum()), "lost_cells": int(details["lost"].sum()), "changed_existing_cells": int(details["changed_existing"].sum()), "enhanced_inf_cells": int(details["enhanced_inf"].sum())}
+    summary = {
+        "year": year,
+        "rows": len(b),
+        "factor_columns": len(factors),
+        "keys_match": keys_match,
+        "baseline_mean_coverage": float(details["baseline_coverage"].mean()),
+        "enhanced_mean_coverage": float(details["enhanced_coverage"].mean()),
+        "recovered_cells": int(details["recovered"].sum()),
+        "lost_cells": int(details["lost"].sum()),
+        "changed_existing_cells": int(details["changed_existing"].sum()),
+        "enhanced_inf_cells": int(details["enhanced_inf"].sum()),
+    }
     return details, summary
 
 
-def audit_prefix_consistency(target: pd.DataFrame, full_calendar: pd.DatetimeIndex, enhanced: pd.DataFrame, year: int, sample_dates: int = 3, sample_instruments: int = 5, seed: int = 42, rtol: float = 1e-8, atol: float = 1e-10) -> pd.DataFrame:
+def audit_prefix_consistency(
+    target: pd.DataFrame,
+    full_calendar: pd.DatetimeIndex,
+    enhanced: pd.DataFrame,
+    year: int,
+    sample_dates: int = 3,
+    sample_instruments: int = 5,
+    seed: int = 42,
+    rtol: float = 1e-8,
+    atol: float = 1e-10,
+) -> pd.DataFrame:
     """Recompute sampled historical signals using Qlib data truncated at each signal date.
 
     Description:
@@ -86,16 +143,24 @@ def audit_prefix_consistency(target: pd.DataFrame, full_calendar: pd.DatetimeInd
     target = target.reorder_levels(["datetime", "instrument"]).sort_index()
     enhanced = enhanced.reorder_levels(["datetime", "instrument"]).sort_index()
     dates = pd.DatetimeIndex(target.index.get_level_values("datetime").unique()).sort_values()
-    chosen_dates = sorted(rng.choice(dates.to_numpy(), size=min(sample_dates, len(dates)), replace=False))
+    chosen_dates = sorted(
+        rng.choice(dates.to_numpy(), size=min(sample_dates, len(dates)), replace=False)
+    )
     rows = []
     for date_value in chosen_dates:
         date = pd.Timestamp(date_value)
         day = target.xs(date, level="datetime", drop_level=False)
         instruments = day.index.get_level_values("instrument").unique().to_numpy()
-        chosen = rng.choice(instruments, size=min(sample_instruments, len(instruments)), replace=False)
+        chosen = rng.choice(
+            instruments, size=min(sample_instruments, len(instruments)), replace=False
+        )
         subset = day.loc[day.index.get_level_values("instrument").isin(chosen)]
-        history, calendar = load_extended_history(subset, full_calendar, lookback=max(DEFAULT_WINDOWS) + 1)
-        recomputed = build_factor_panel(history, calendar, str(date.date()), str(date.date())).reindex(subset.index)
+        history, calendar = load_extended_history(
+            subset, full_calendar, lookback=max(DEFAULT_WINDOWS) + 1
+        )
+        recomputed = build_factor_panel(
+            history, calendar, str(date.date()), str(date.date())
+        ).reindex(subset.index)
         expected = enhanced.reindex(subset.index)
         for key in subset.index:
             a = recomputed.loc[key].to_numpy(dtype=float)
@@ -104,11 +169,30 @@ def audit_prefix_consistency(target: pd.DataFrame, full_calendar: pd.DatetimeInd
             both = np.isfinite(a) & np.isfinite(b)
             numeric_equal = np.isclose(a[both], b[both], rtol=rtol, atol=atol)
             differences = np.abs(a[both] - b[both])
-            rows.append({"year": year, "datetime": date, "instrument": key[1], "cells": len(a), "missing_mismatch": int((~same_missing).sum()), "value_mismatch": int((~numeric_equal).sum()), "max_abs_diff": float(differences.max()) if differences.size else np.nan})
+            rows.append(
+                {
+                    "year": year,
+                    "datetime": date,
+                    "instrument": key[1],
+                    "cells": len(a),
+                    "missing_mismatch": int((~same_missing).sum()),
+                    "value_mismatch": int((~numeric_equal).sum()),
+                    "max_abs_diff": float(differences.max()) if differences.size else np.nan,
+                }
+            )
     return pd.DataFrame(rows)
 
 
-def run_enhanced_audit(data_dir: Path, baseline_dir: Path, enhanced_dir: Path, report_dir: Path, calendar: pd.DatetimeIndex | None = None, prefix_check: bool = True, sample_dates: int = 3, sample_instruments: int = 5) -> dict[str, pd.DataFrame]:
+def run_enhanced_audit(
+    data_dir: Path,
+    baseline_dir: Path,
+    enhanced_dir: Path,
+    report_dir: Path,
+    calendar: pd.DatetimeIndex | None = None,
+    prefix_check: bool = True,
+    sample_dates: int = 3,
+    sample_instruments: int = 5,
+) -> dict[str, pd.DataFrame]:
     """Audit all available enhanced factor years and export CSV diagnostics.
 
     Parameters:
@@ -128,7 +212,9 @@ def run_enhanced_audit(data_dir: Path, baseline_dir: Path, enhanced_dir: Path, r
         Files are loaded one year at a time. No source data are modified.
         A mismatch in keys or factor columns stops the audit immediately.
     """
-    data_dir, baseline_dir, enhanced_dir, report_dir = map(Path, (data_dir, baseline_dir, enhanced_dir, report_dir))
+    data_dir, baseline_dir, enhanced_dir, report_dir = map(
+        Path, (data_dir, baseline_dir, enhanced_dir, report_dir)
+    )
     if prefix_check and calendar is None:
         raise ValueError("Full historical calendar is required for prefix checks")
     summaries, comparisons, prefixes = [], [], []
@@ -141,14 +227,28 @@ def run_enhanced_audit(data_dir: Path, baseline_dir: Path, enhanced_dir: Path, r
         price_file = data_dir / f"csi300_daily_{year}.parquet"
         if not baseline_file.exists() or not price_file.exists():
             raise FileNotFoundError(f"Missing baseline or price file for {year}")
-        baseline, enhanced, price = pd.read_parquet(baseline_file), pd.read_parquet(file), pd.read_parquet(price_file)
+        baseline, enhanced, price = (
+            pd.read_parquet(baseline_file),
+            pd.read_parquet(file),
+            pd.read_parquet(price_file),
+        )
         comparison, summary = compare_factor_frames(baseline, enhanced, price, year)
         comparisons.append(comparison)
         summaries.append(summary)
         if prefix_check:
-            prefixes.append(audit_prefix_consistency(price, calendar, enhanced, year, sample_dates, sample_instruments))
-        print(f"Audited {year}: recovered={summary['recovered_cells']:,}, lost={summary['lost_cells']:,}, changed={summary['changed_existing_cells']:,}", flush=True)
-    results = {"year_comparison": pd.DataFrame(summaries), "factor_comparison": pd.concat(comparisons, ignore_index=True)}
+            prefixes.append(
+                audit_prefix_consistency(
+                    price, calendar, enhanced, year, sample_dates, sample_instruments
+                )
+            )
+        print(
+            f"Audited {year}: recovered={summary['recovered_cells']:,}, lost={summary['lost_cells']:,}, changed={summary['changed_existing_cells']:,}",
+            flush=True,
+        )
+    results = {
+        "year_comparison": pd.DataFrame(summaries),
+        "factor_comparison": pd.concat(comparisons, ignore_index=True),
+    }
     if prefix_check:
         results["prefix_consistency"] = pd.concat(prefixes, ignore_index=True)
     report_dir.mkdir(parents=True, exist_ok=True)

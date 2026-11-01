@@ -71,7 +71,9 @@ def _transform_cross_section(values: pd.Series, config: PreprocessConfig) -> pd.
     return result
 
 
-def preprocess_factor_panel(panel: pd.DataFrame, config: PreprocessConfig, factor_columns: list[str] | None = None) -> pd.DataFrame:
+def preprocess_factor_panel(
+    panel: pd.DataFrame, config: PreprocessConfig, factor_columns: list[str] | None = None
+) -> pd.DataFrame:
     """Description:
         Transform a multi-stock factor panel independently within each trading date.
 
@@ -88,12 +90,23 @@ def preprocess_factor_panel(panel: pd.DataFrame, config: PreprocessConfig, facto
         Only eligible instruments already present in the input panel are ranked.
         The caller must ensure the input factor values are available by the signal timestamp.
     """
-    if not isinstance(panel.index, pd.MultiIndex) or list(panel.index.names) != ["datetime", "instrument"]:
+    if not isinstance(panel.index, pd.MultiIndex) or list(panel.index.names) != [
+        "datetime",
+        "instrument",
+    ]:
         raise ValueError("Expected MultiIndex with names ['datetime', 'instrument']")
     if panel.index.has_duplicates:
         raise ValueError("Duplicate (datetime, instrument) keys are not allowed")
-    columns = factor_columns if factor_columns is not None else panel.select_dtypes(include="number").columns.tolist()
-    if not columns or len(set(columns)) != len(columns) or any(column not in panel.columns for column in columns):
+    columns = (
+        factor_columns
+        if factor_columns is not None
+        else panel.select_dtypes(include="number").columns.tolist()
+    )
+    if (
+        not columns
+        or len(set(columns)) != len(columns)
+        or any(column not in panel.columns for column in columns)
+    ):
         raise ValueError("factor_columns must be nonempty, unique, and present in panel")
     result = pd.DataFrame(index=panel.index, columns=columns, dtype=float)
     for _, date_panel in panel.groupby(level="datetime", sort=False):
@@ -103,7 +116,13 @@ def preprocess_factor_panel(panel: pd.DataFrame, config: PreprocessConfig, facto
     return result
 
 
-def compare_prefix_invariance(panel: pd.DataFrame, cutoff: str | pd.Timestamp, config: PreprocessConfig, factor_columns: list[str] | None = None, atol: float = 1e-12) -> dict:
+def compare_prefix_invariance(
+    panel: pd.DataFrame,
+    cutoff: str | pd.Timestamp,
+    config: PreprocessConfig,
+    factor_columns: list[str] | None = None,
+    atol: float = 1e-12,
+) -> dict:
     """Description:
         Compare transformations computed on full history versus history truncated at cutoff.
 
@@ -126,5 +145,13 @@ def compare_prefix_invariance(panel: pd.DataFrame, cutoff: str | pd.Timestamp, c
     reference = full.loc[prefix.index]
     a, b = reference.to_numpy(), prefix.to_numpy()
     missing_mismatch = int(np.count_nonzero(np.isnan(a) != np.isnan(b)))
-    value_mismatch = int(np.count_nonzero(~np.isclose(a, b, rtol=0, atol=atol, equal_nan=True))) - missing_mismatch
-    return {"cutoff": str(pd.Timestamp(cutoff).date()), "rows": len(prefix), "missing_mismatch": missing_mismatch, "value_mismatch": value_mismatch}
+    value_mismatch = (
+        int(np.count_nonzero(~np.isclose(a, b, rtol=0, atol=atol, equal_nan=True)))
+        - missing_mismatch
+    )
+    return {
+        "cutoff": str(pd.Timestamp(cutoff).date()),
+        "rows": len(prefix),
+        "missing_mismatch": missing_mismatch,
+        "value_mismatch": value_mismatch,
+    }

@@ -3,7 +3,9 @@ import numpy as np
 import pandas as pd
 
 
-def conditional_rank_ic(panel: pd.DataFrame, candidate: str, controls: list[str], min_n: int = 30) -> pd.DataFrame:
+def conditional_rank_ic(
+    panel: pd.DataFrame, candidate: str, controls: list[str], min_n: int = 30
+) -> pd.DataFrame:
     """Description: Calculate daily rank correlation of candidate residuals with forward returns after projecting out control ranks.
 
     Parameters:
@@ -44,7 +46,8 @@ def train_redundancy_groups(corr: pd.DataFrame, threshold: float = 0.8) -> pd.Da
         Connected components are not hierarchical clusters; indirect links can connect weakly correlated factors.
     """
     names = list(corr.index)
-    if set(names) != set(corr.columns) or not 0 < threshold <= 1: raise ValueError('Invalid matrix or threshold')
+    if set(names) != set(corr.columns) or not 0 < threshold <= 1:
+        raise ValueError('Invalid matrix or threshold')
     seen = set(); groups = []
     for name in names:
         if name in seen: continue
@@ -53,7 +56,18 @@ def train_redundancy_groups(corr: pd.DataFrame, threshold: float = 0.8) -> pd.Da
             node = todo.pop()
             if node in seen: continue
             seen.add(node); members.append(node)
-            todo.extend([other for other in names if other not in seen and other != node and pd.notna(corr.loc[node, other]) and abs(corr.loc[node, other]) >= threshold])
+            todo.extend(
+                [
+                    other
+                    for other in names
+                    if other not in seen
+                    and other != node
+                    and pd.notna(corr.loc[node, other])
+                    and abs(corr.loc[node, other]) >= threshold
+                ]
+            )
         group_id = len({x['redundancy_group'] for x in groups}) + 1
-        groups.extend({'factor': member, 'redundancy_group': group_id} for member in sorted(members))
+        groups.extend(
+            {'factor': member, 'redundancy_group': group_id} for member in sorted(members)
+        )
     return pd.DataFrame(groups)

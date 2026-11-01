@@ -16,7 +16,15 @@ def sample_panel() -> pd.DataFrame:
     """
     rows = []
     for date in ['2022-01-04', '2022-01-05']:
-        for i in range(10): rows.append({'signal_date': pd.Timestamp(date), 'instrument': f'S{i:02}', 'VOLATILITY_20': float(i), 'research_label_5d': float(100 if i == 9 else 10-i)})
+        for i in range(10):
+            rows.append(
+                {
+                    'signal_date': pd.Timestamp(date),
+                    'instrument': f'S{i:02}',
+                    'VOLATILITY_20': float(i),
+                    'research_label_5d': float(100 if i == 9 else 10 - i),
+                }
+            )
     return pd.DataFrame(rows)
 
 
@@ -45,8 +53,12 @@ def test_daily_comparison() -> None:
         Comparison must reject incorrect saved spread values.
     """
     daily, _ = audit_factor(sample_panel(), 'VOLATILITY_20', min_n=5)
-    ic = daily[['signal_date', 'rank_ic_independent', 'n_paired']].rename(columns={'rank_ic_independent': 'rank_ic'})
-    q = daily[['signal_date', 'spread_mean', 'n_paired']].rename(columns={'spread_mean': 'long_short_forward_spread'})
+    ic = daily[['signal_date', 'rank_ic_independent', 'n_paired']].rename(
+        columns={'rank_ic_independent': 'rank_ic'}
+    )
+    q = daily[['signal_date', 'spread_mean', 'n_paired']].rename(
+        columns={'spread_mean': 'long_short_forward_spread'}
+    )
     assert compare_saved(daily, ic, q)['pass'].all()
     q.loc[q.index[0], 'long_short_forward_spread'] += 0.01
     assert (~compare_saved(daily, ic, q)['pass']).sum() == 1

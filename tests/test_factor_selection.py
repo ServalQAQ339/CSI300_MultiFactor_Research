@@ -14,7 +14,13 @@ def test_conditional_rank_ic_perfect_rank() -> None:
     Notes:
         No project data is needed.
     """
-    d = pd.DataFrame({'signal_date':pd.Timestamp('2020-01-02'),'x':np.arange(50),'research_label_5d':np.arange(50)})
+    d = pd.DataFrame(
+        {
+            'signal_date': pd.Timestamp('2020-01-02'),
+            'x': np.arange(50),
+            'research_label_5d': np.arange(50),
+        }
+    )
     assert abs(conditional_rank_ic(d,'x',[],30).conditional_rank_ic.iloc[0]-1)<1e-12
 
 
@@ -28,7 +34,14 @@ def test_residualized_duplicate_is_uninformative() -> None:
     Notes:
         Duplicate factors cannot add independent rank information.
     """
-    d = pd.DataFrame({'signal_date':pd.Timestamp('2020-01-02'),'x':np.arange(50),'z':np.arange(50),'research_label_5d':np.arange(50)})
+    d = pd.DataFrame(
+        {
+            'signal_date': pd.Timestamp('2020-01-02'),
+            'x': np.arange(50),
+            'z': np.arange(50),
+            'research_label_5d': np.arange(50),
+        }
+    )
     assert np.isnan(conditional_rank_ic(d,'x',['z'],30).conditional_rank_ic.iloc[0])
 
 

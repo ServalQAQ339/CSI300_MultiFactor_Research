@@ -12,7 +12,14 @@ def test_ic_perfect_monotonic():
     Returns: None.
     Notes: Uses a single four-stock cross-section.
     """
-    d = pd.DataFrame({'date': ['2020-01-01'] * 4, 'instrument': list('ABCD'), 'x': [1, 2, 3, 4], 'y': [2, 4, 6, 8]})
+    d = pd.DataFrame(
+        {
+            'date': ['2020-01-01'] * 4,
+            'instrument': list('ABCD'),
+            'x': [1, 2, 3, 4],
+            'y': [2, 4, 6, 8],
+        }
+    )
     a = daily_ic(d, ['x'], 'y', min_n=3).iloc[0]
     assert np.isclose(a.ic, 1) and np.isclose(a.rank_ic, 1)
 
@@ -24,7 +31,15 @@ def test_ties_and_constant():
     Returns: None.
     Notes: Spearman rank ties are averaged by pandas.
     """
-    d = pd.DataFrame({'date': ['2020-01-01'] * 4, 'instrument': list('ABCD'), 'x': [1, 1, 2, 3], 'c': [2] * 4, 'y': [1, 2, 3, 4]})
+    d = pd.DataFrame(
+        {
+            'date': ['2020-01-01'] * 4,
+            'instrument': list('ABCD'),
+            'x': [1, 1, 2, 3],
+            'c': [2] * 4,
+            'y': [1, 2, 3, 4],
+        }
+    )
     a = daily_ic(d, ['x', 'c'], 'y', min_n=3).set_index('factor')
     assert np.isclose(a.loc['x', 'rank_ic'], pd.Series(d.x).corr(pd.Series(d.y), method='spearman'))
     assert a.loc['c', 'status'] == 'constant' and np.isnan(a.loc['c', 'ic'])
@@ -53,6 +68,13 @@ def test_hac_zero_lag_and_quantiles():
     x = pd.Series([.1, .2, -.1, .3, .2])
     result = hac_mean(x, 0)
     assert np.isclose(result['hac_se'], np.std(x, ddof=0) / np.sqrt(len(x)))
-    d = pd.DataFrame({'date': ['2020-01-01'] * 10, 'instrument': list('ABCDEFGHIJ'), 'x': range(10), 'y': np.arange(10) / 100})
+    d = pd.DataFrame(
+        {
+            'date': ['2020-01-01'] * 10,
+            'instrument': list('ABCDEFGHIJ'),
+            'x': range(10),
+            'y': np.arange(10) / 100,
+        }
+    )
     q = quantile_returns(d, 'x', 'y', min_n=5).iloc[0]
     assert np.isclose(q.long_short_forward_spread, .08)

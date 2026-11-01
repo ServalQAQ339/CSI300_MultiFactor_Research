@@ -11,9 +11,23 @@ class TestLabels(unittest.TestCase):
     def setUp(self):
         """Description: Create a synthetic exchange calendar and price panel. Parameters: None. Returns: None. Notes: All prices are invented for deterministic tests."""
         self.cal = pd.bdate_range('2020-12-21', '2021-01-15')
-        self.p = pd.DataFrame({'instrument': 'SH600000', 'datetime': self.cal, 'open': np.arange(len(self.cal), dtype=float) + 10, 'close': np.arange(len(self.cal), dtype=float) + 11, 'factor': 0.1})
+        self.p = pd.DataFrame(
+            {
+                'instrument': 'SH600000',
+                'datetime': self.cal,
+                'open': np.arange(len(self.cal), dtype=float) + 10,
+                'close': np.arange(len(self.cal), dtype=float) + 11,
+                'factor': 0.1,
+            }
+        )
         self.m = pd.DataFrame({'instrument': 'SH600000', 'datetime': self.cal, 'eligible': True})
-        self.cfg = LabelConfig(horizons=(1, 5, 10), research_start='2020-12-21', train_end='2020-12-31', validation_end='2021-01-15', test_end='2021-01-15')
+        self.cfg = LabelConfig(
+            horizons=(1, 5, 10),
+            research_start='2020-12-21',
+            train_end='2020-12-31',
+            validation_end='2021-01-15',
+            test_end='2021-01-15',
+        )
 
     def test_next_open_and_holding(self):
         """Description: Verify exact H+1 exit offset. Parameters: None. Returns: None. Notes: Uses market rather than per-stock calendar."""

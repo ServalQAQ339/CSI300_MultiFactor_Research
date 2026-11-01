@@ -16,7 +16,17 @@ def test_universe_observed_only(tmp_path, monkeypatch):
     Notes:
         Missing days must not be fabricated.
     """
-    folder=tmp_path/'data'/'processed'; folder.mkdir(parents=True); idx=pd.MultiIndex.from_tuples([(pd.Timestamp('2015-04-01'),'SZ000001'),(pd.Timestamp('2015-04-03'),'SH600519')],names=['datetime','instrument']); (folder/'csi300_daily_2015.parquet').touch(); monkeypatch.setattr(pd,'read_parquet',lambda *args,**kwargs: pd.DataFrame(index=idx)); d=extract_universe(tmp_path); assert len(d)==2; assert set(d.symbol)=={'000001','600519'}
+    folder = tmp_path / 'data' / 'processed'
+    folder.mkdir(parents=True)
+    idx = pd.MultiIndex.from_tuples(
+        [(pd.Timestamp('2015-04-01'), 'SZ000001'), (pd.Timestamp('2015-04-03'), 'SH600519')],
+        names=['datetime', 'instrument'],
+    )
+    (folder / 'csi300_daily_2015.parquet').touch()
+    monkeypatch.setattr(pd, 'read_parquet', lambda *args, **kwargs: pd.DataFrame(index=idx))
+    d = extract_universe(tmp_path)
+    assert len(d) == 2
+    assert set(d.symbol) == {'000001', '600519'}
 
 
 def test_missing_cache_report(tmp_path):
@@ -29,7 +39,9 @@ def test_missing_cache_report(tmp_path):
     Notes:
         Missing data must not be silently imputed.
     """
-    _,r=audit_share_cache(tmp_path,['000001']); assert r['missing_symbols']==['000001']; assert r['strict_pit_certified'] is False
+    _, r = audit_share_cache(tmp_path, ['000001'])
+    assert r['missing_symbols'] == ['000001']
+    assert r['strict_pit_certified'] is False
 
 
 def test_candidate_price_requires_acknowledgement(tmp_path):
@@ -42,5 +54,9 @@ def test_candidate_price_requires_acknowledgement(tmp_path):
     Notes:
         Unit and price certification remain separate from program execution.
     """
-    u=pd.DataFrame({'datetime':[pd.Timestamp('2015-04-01')],'instrument':['SZ000001'],'symbol':['000001']}); e=pd.DataFrame()
-    with pytest.raises(ValueError,match='allow-unverified-price'): construct_candidate_exposures(u,e,tmp_path,10000)
+    u = pd.DataFrame(
+        {'datetime': [pd.Timestamp('2015-04-01')], 'instrument': ['SZ000001'], 'symbol': ['000001']}
+    )
+    e = pd.DataFrame()
+    with pytest.raises(ValueError, match='allow-unverified-price'):
+        construct_candidate_exposures(u, e, tmp_path, 10000)

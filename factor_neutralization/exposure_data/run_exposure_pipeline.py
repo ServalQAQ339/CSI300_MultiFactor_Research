@@ -15,9 +15,21 @@ def main() -> None:
     Notes:
         Downloading hundreds of stocks requires deliberate user initiation.
     """
-    p=argparse.ArgumentParser(); p.add_argument('--root',required=True); p.add_argument('--output',required=True); a=p.parse_args(); root=Path(a.root); out=Path(a.output)
-    print(f'python -m factor_neutralization.exposure_data.build_universe --root "{root}" --output "{out}"')
-    print(f'python -m factor_neutralization.exposure_data.download --symbols-file "{out / "symbols.txt"}" --output "{root / "data" / "external" / "shares"}" --start 20100101 --end 20260930 --delay 2')
-    print(f'python -m factor_neutralization.exposure_data.validate_shares --symbols-file "{out / "symbols.txt"}" --cache "{root / "data" / "external" / "shares"}" --output "{out}"')
+    p = argparse.ArgumentParser()
+    p.add_argument('--root', required=True)
+    p.add_argument('--output', required=True)
+    a = p.parse_args()
+    root = Path(a.root)
+    out = Path(a.output)
+    print(
+        f'python -m factor_neutralization.exposure_data.build_universe --root "{root}" --output "{out}"'
+    )
+    print(
+        f'python -m factor_neutralization.exposure_data.download --symbols-file "{out / "symbols.txt"}" --output "{root / "data" / "external" / "shares"}" --start 20100101 --end 20260930 --delay 2'
+    )
+    print(
+        f'python -m factor_neutralization.exposure_data.validate_shares --symbols-file "{out / "symbols.txt"}" --cache "{root / "data" / "external" / "shares"}" --output "{out}"'
+    )
+
 
 if __name__=='__main__': main()

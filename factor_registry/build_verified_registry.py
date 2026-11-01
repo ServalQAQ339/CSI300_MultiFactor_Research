@@ -33,20 +33,67 @@ def build_verified_registry(source: Path = SOURCE) -> dict:
     """
     content = source.read_text(encoding='utf-8')
     tree = ast.parse(content)
-    fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'calculate_stock_factors')
+    fn = next(
+        n
+        for n in tree.body
+        if isinstance(n, ast.FunctionDef) and n.name == 'calculate_stock_factors'
+    )
     lines = [ast.unparse(n) for n in ast.walk(fn) if isinstance(n, ast.Assign)]
-    expected = ['opening.div(close).sub(1)', 'high.sub(low).div(close)', 'close.sub(low).div(high.sub(low).replace(0, np.nan))', 'close.div(close.shift(window)).sub(1)', 'close.div(close.rolling(window, min_periods=window).mean()).sub(1)', 'daily_return.rolling(window, min_periods=window).std(ddof=1)', 'volume.div(volume.rolling(window, min_periods=window).mean().replace(0, np.nan))', 'close.div(high.rolling(window, min_periods=window).max()).sub(1)', 'close.div(low.rolling(window, min_periods=window).min()).sub(1)']
+    expected = [
+        'opening.div(close).sub(1)',
+        'high.sub(low).div(close)',
+        'close.sub(low).div(high.sub(low).replace(0, np.nan))',
+        'close.div(close.shift(window)).sub(1)',
+        'close.div(close.rolling(window, min_periods=window).mean()).sub(1)',
+        'daily_return.rolling(window, min_periods=window).std(ddof=1)',
+        'volume.div(volume.rolling(window, min_periods=window).mean().replace(0, np.nan))',
+        'close.div(high.rolling(window, min_periods=window).max()).sub(1)',
+        'close.div(low.rolling(window, min_periods=window).min()).sub(1)',
+    ]
     for expression in expected:
         if not any(expression in line for line in lines):
             raise ValueError(f'Unverified expression: {expression}')
     factors = []
     for name, (formula, required, family) in BASE.items():
-        factors.append({'factor_id': f'original27:{name}:v1', 'name': name, 'family': family, 'window': None, 'formula': formula, 'requires': required.split(','), 'formula_verified': True})
+        factors.append(
+            {
+                'factor_id': f'original27:{name}:v1',
+                'name': name,
+                'family': family,
+                'window': None,
+                'formula': formula,
+                'requires': required.split(','),
+                'formula_verified': True,
+            }
+        )
     for w in (5, 10, 20, 60):
         for prefix, (formula, required, family) in ROLLING.items():
             name = f'{prefix}_{w}'
-            factors.append({'factor_id': f'original27:{name}:v1', 'name': name, 'family': family, 'window': w, 'formula': formula.replace('w', str(w)) if False else formula.replace('(w)', f'({w})').replace(',w,', f',{w},'), 'requires': required.split(','), 'formula_verified': True})
-    return {'schema_version': 1, 'source_file': 'factors/factor_engine.py', 'source_sha256': hashlib.sha256(content.encode('utf-8')).hexdigest(), 'factor_count': len(factors), 'formula_audit': 'source_verified', 'upstream_adjustment_certified': False, 'historical_membership_pit_certified': False, 'factors': factors}
+            factors.append(
+                {
+                    'factor_id': f'original27:{name}:v1',
+                    'name': name,
+                    'family': family,
+                    'window': w,
+                    'formula': (
+                        formula.replace('w', str(w))
+                        if False
+                        else formula.replace('(w)', f'({w})').replace(',w,', f',{w},')
+                    ),
+                    'requires': required.split(','),
+                    'formula_verified': True,
+                }
+            )
+    return {
+        'schema_version': 1,
+        'source_file': 'factors/factor_engine.py',
+        'source_sha256': hashlib.sha256(content.encode('utf-8')).hexdigest(),
+        'factor_count': len(factors),
+        'formula_audit': 'source_verified',
+        'upstream_adjustment_certified': False,
+        'historical_membership_pit_certified': False,
+        'factors': factors,
+    }
 
 
 def main() -> None:

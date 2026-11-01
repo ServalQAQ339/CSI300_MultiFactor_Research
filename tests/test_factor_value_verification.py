@@ -2,7 +2,13 @@
 import numpy as np
 import pandas as pd
 import pytest
-from factor_verification.verification import FACTORS, compare_values, independent_factors, normalize_panel, recompute_panel
+from factor_verification.verification import (
+    FACTORS,
+    compare_values,
+    independent_factors,
+    normalize_panel,
+    recompute_panel,
+)
 
 
 def sample_panel(n=100):
@@ -17,7 +23,16 @@ def sample_panel(n=100):
     """
     dates = pd.bdate_range('2020-01-01', periods=n)
     close = pd.Series(100 + np.arange(n, dtype=float), index=dates)
-    return pd.DataFrame({'open': close - 1, 'high': close + 2, 'low': close - 3, 'close': close, 'volume': 1000 + np.arange(n)}, index=dates)
+    return pd.DataFrame(
+        {
+            'open': close - 1,
+            'high': close + 2,
+            'low': close - 3,
+            'close': close,
+            'volume': 1000 + np.arange(n),
+        },
+        index=dates,
+    )
 
 
 def test_formulas_and_warmup():

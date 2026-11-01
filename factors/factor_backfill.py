@@ -7,7 +7,12 @@ from data.history_loader import load_extended_history
 from factors.factor_engine import build_factor_panel, DEFAULT_WINDOWS
 
 
-def generate_backfilled_year(target: pd.DataFrame, calendar: pd.DatetimeIndex, windows: tuple[int, ...] = DEFAULT_WINDOWS, fetcher=None) -> tuple[pd.DataFrame, dict]:
+def generate_backfilled_year(
+    target: pd.DataFrame,
+    calendar: pd.DatetimeIndex,
+    windows: tuple[int, ...] = DEFAULT_WINDOWS,
+    fetcher=None,
+) -> tuple[pd.DataFrame, dict]:
     """Calculate factors using prior price history and preserve eligible keys exactly.
 
     Description:
@@ -30,17 +35,37 @@ def generate_backfilled_year(target: pd.DataFrame, calendar: pd.DatetimeIndex, w
     if not windows or min(windows) < 2:
         raise ValueError("windows must contain values >= 2")
     target_keys = target.reorder_levels(["datetime", "instrument"]).sort_index().index
-    history, window_calendar = load_extended_history(target, calendar, lookback=max(windows) + 1, fetcher=fetcher)
-    first, last = target_keys.get_level_values("datetime").min(), target_keys.get_level_values("datetime").max()
-    computed = build_factor_panel(history, window_calendar, str(first.date()), str(last.date()), windows)
+    history, window_calendar = load_extended_history(
+        target, calendar, lookback=max(windows) + 1, fetcher=fetcher
+    )
+    first, last = (
+        target_keys.get_level_values("datetime").min(),
+        target_keys.get_level_values("datetime").max(),
+    )
+    computed = build_factor_panel(
+        history, window_calendar, str(first.date()), str(last.date()), windows
+    )
     result = computed.reindex(target_keys).replace([np.inf, -np.inf], np.nan)
     if not result.index.equals(target_keys) or result.index.has_duplicates:
         raise AssertionError("Membership preservation failed")
-    stats = {"rows": len(result), "instruments": target_keys.get_level_values("instrument").nunique(), "mean_coverage": float(result.notna().mean().mean()), "history_rows": len(history), "history_start": str(window_calendar[0].date())}
+    stats = {
+        "rows": len(result),
+        "instruments": target_keys.get_level_values("instrument").nunique(),
+        "mean_coverage": float(result.notna().mean().mean()),
+        "history_rows": len(history),
+        "history_start": str(window_calendar[0].date()),
+    }
     return result, stats
 
 
-def run_backfilled_factor_pipeline(data_dir: Path, output_dir: Path, calendar: pd.DatetimeIndex, start_year: int = 2015, end_year: int = 2026, overwrite: bool = False) -> pd.DataFrame:
+def run_backfilled_factor_pipeline(
+    data_dir: Path,
+    output_dir: Path,
+    calendar: pd.DatetimeIndex,
+    start_year: int = 2015,
+    end_year: int = 2026,
+    overwrite: bool = False,
+) -> pd.DataFrame:
     """Generate annual extended-history factor files without overwriting baseline.
 
     Parameters:
@@ -73,5 +98,8 @@ def run_backfilled_factor_pipeline(data_dir: Path, output_dir: Path, calendar: p
         result, stats = generate_backfilled_year(target, calendar)
         result.to_parquet(destination, engine="pyarrow", compression="snappy")
         rows.append({"year": year, "status": "generated", **stats, "path": str(destination)})
-        print(f"Enhanced {year}: {len(result):,} rows, coverage={stats['mean_coverage']:.4f}", flush=True)
+        print(
+            f"Enhanced {year}: {len(result):,} rows, coverage={stats['mean_coverage']:.4f}",
+            flush=True,
+        )
     return pd.DataFrame(rows)

@@ -14,7 +14,9 @@ def test_classify_fields():
 
 def test_audit_never_certifies_pit(tmp_path):
     """Description: Verify source discovery never claims PIT certification. Parameters: tmp_path (Path) pytest temporary directory. Returns: None."""
-    (tmp_path / 'industry_history.csv').write_text('datetime,instrument,industry\n2020-01-01,SH600000,Bank\n', encoding='utf-8')
+    (tmp_path / 'industry_history.csv').write_text(
+        'datetime,instrument,industry\n2020-01-01,SH600000,Bank\n', encoding='utf-8'
+    )
     output = tmp_path / 'report.json'
     result = audit(tmp_path, output)
     assert result['pit_certified'] is False

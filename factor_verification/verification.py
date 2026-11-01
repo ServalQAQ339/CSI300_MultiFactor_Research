@@ -43,8 +43,18 @@ def independent_factors(stock: pd.DataFrame) -> pd.DataFrame:
     Notes:
         Replicates the uploaded source's formulas, ddof=1, complete windows, and invalid-price rules without importing factor_engine.
     """
-    x = stock[['open', 'high', 'low', 'close', 'volume']].apply(pd.to_numeric, errors='coerce').replace([np.inf, -np.inf], np.nan).copy()
-    bad = x[['open', 'high', 'low', 'close']].le(0).any(axis=1) | x.high.lt(x.low) | x.high.lt(x[['open', 'close']].max(axis=1)) | x.low.gt(x[['open', 'close']].min(axis=1))
+    x = (
+        stock[['open', 'high', 'low', 'close', 'volume']]
+        .apply(pd.to_numeric, errors='coerce')
+        .replace([np.inf, -np.inf], np.nan)
+        .copy()
+    )
+    bad = (
+        x[['open', 'high', 'low', 'close']].le(0).any(axis=1)
+        | x.high.lt(x.low)
+        | x.high.lt(x[['open', 'close']].max(axis=1))
+        | x.low.gt(x[['open', 'close']].min(axis=1))
+    )
     x.loc[bad, ['open', 'high', 'low', 'close']] = np.nan
     x.loc[x.volume.lt(0), 'volume'] = np.nan
     c, o, h, l, v = x.close, x.open, x.high, x.low, x.volume
@@ -63,7 +73,9 @@ def independent_factors(stock: pd.DataFrame) -> pd.DataFrame:
     return out.replace([np.inf, -np.inf], np.nan)[list(FACTORS)]
 
 
-def recompute_panel(source: pd.DataFrame, calendar: pd.DatetimeIndex, target_keys: pd.MultiIndex) -> pd.DataFrame:
+def recompute_panel(
+    source: pd.DataFrame, calendar: pd.DatetimeIndex, target_keys: pd.MultiIndex
+) -> pd.DataFrame:
     """Description: Recompute factors using a common exchange calendar and retain exactly requested keys.
 
     Parameters:
@@ -82,14 +94,26 @@ def recompute_panel(source: pd.DataFrame, calendar: pd.DatetimeIndex, target_key
             continue
         stock = source.xs(asset, level='instrument').reindex(calendar)
         calc = independent_factors(stock)
-        requested = target_keys[target_keys.get_level_values('instrument') == asset].get_level_values('datetime')
+        requested = target_keys[
+            target_keys.get_level_values('instrument') == asset
+        ].get_level_values('datetime')
         calc = calc.reindex(requested)
         calc['instrument'] = asset
         parts.append(calc.reset_index().rename(columns={'index': 'datetime'}).set_index(KEYS))
-    return pd.concat(parts).reindex(target_keys) if parts else pd.DataFrame(index=target_keys, columns=list(FACTORS), dtype=float)
+    return (
+        pd.concat(parts).reindex(target_keys)
+        if parts
+        else pd.DataFrame(index=target_keys, columns=list(FACTORS), dtype=float)
+    )
 
 
-def compare_values(expected: pd.DataFrame, actual: pd.DataFrame, atol: float = 1e-8, rtol: float = 1e-7, max_examples: int = 100) -> tuple[pd.DataFrame, pd.DataFrame]:
+def compare_values(
+    expected: pd.DataFrame,
+    actual: pd.DataFrame,
+    atol: float = 1e-8,
+    rtol: float = 1e-7,
+    max_examples: int = 100,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Description: Compare values with separate missingness and numeric discrepancy accounting.
 
     Parameters:
@@ -116,14 +140,40 @@ def compare_values(expected: pd.DataFrame, actual: pd.DataFrame, atol: float = 1
         diff[both] = np.abs(a[both] - b[both])
         numeric_fail = both & ~np.isclose(a, b, atol=atol, rtol=rtol)
         failed = missing_mismatch | numeric_fail
-        rows.append({'factor': factor, 'rows': len(a), 'both_finite': int(both.sum()), 'both_missing': int((~finite_a & ~finite_b).sum()), 'missing_mismatch': int(missing_mismatch.sum()), 'numeric_fail': int(numeric_fail.sum()), 'failed': int(failed.sum()), 'max_abs_diff': float(np.nanmax(diff)) if both.any() else None})
+        rows.append(
+            {
+                'factor': factor,
+                'rows': len(a),
+                'both_finite': int(both.sum()),
+                'both_missing': int((~finite_a & ~finite_b).sum()),
+                'missing_mismatch': int(missing_mismatch.sum()),
+                'numeric_fail': int(numeric_fail.sum()),
+                'failed': int(failed.sum()),
+                'max_abs_diff': float(np.nanmax(diff)) if both.any() else None,
+            }
+        )
         for j in np.flatnonzero(failed)[:max(0, max_examples - len(examples))]:
             dt, asset = expected.index[j]
-            examples.append({'datetime': str(dt.date()), 'instrument': asset, 'factor': factor, 'recomputed': float(a[j]) if finite_a[j] else None, 'stored': float(b[j]) if finite_b[j] else None, 'abs_diff': float(diff[j]) if both[j] else None, 'reason': 'missing_mismatch' if missing_mismatch[j] else 'numeric_mismatch'})
-    return pd.DataFrame(rows), pd.DataFrame(examples, columns=['datetime', 'instrument', 'factor', 'recomputed', 'stored', 'abs_diff', 'reason'])
+            examples.append(
+                {
+                    'datetime': str(dt.date()),
+                    'instrument': asset,
+                    'factor': factor,
+                    'recomputed': float(a[j]) if finite_a[j] else None,
+                    'stored': float(b[j]) if finite_b[j] else None,
+                    'abs_diff': float(diff[j]) if both[j] else None,
+                    'reason': 'missing_mismatch' if missing_mismatch[j] else 'numeric_mismatch',
+                }
+            )
+    return pd.DataFrame(rows), pd.DataFrame(
+        examples,
+        columns=['datetime', 'instrument', 'factor', 'recomputed', 'stored', 'abs_diff', 'reason'],
+    )
 
 
-def load_years(folder: Path, template: str, years: range, required: tuple[str, ...]) -> pd.DataFrame:
+def load_years(
+    folder: Path, template: str, years: range, required: tuple[str, ...]
+) -> pd.DataFrame:
     """Description: Load and normalize annual Parquet panels, failing on missing files.
 
     Parameters:
@@ -148,7 +198,15 @@ def load_years(folder: Path, template: str, years: range, required: tuple[str, .
     return result
 
 
-def run_audit(ohlcv_dir: Path, raw_dir: Path, output_dir: Path, calendar_file: Path | None = None, enhanced_dir: Path | None = None, atol: float = 1e-8, rtol: float = 1e-7) -> dict:
+def run_audit(
+    ohlcv_dir: Path,
+    raw_dir: Path,
+    output_dir: Path,
+    calendar_file: Path | None = None,
+    enhanced_dir: Path | None = None,
+    atol: float = 1e-8,
+    rtol: float = 1e-7,
+) -> dict:
     """Description: Independently verify stored annual Raw factors against historical OHLCV and optionally compare Enhanced values.
 
     Parameters:
@@ -166,10 +224,20 @@ def run_audit(ohlcv_dir: Path, raw_dir: Path, output_dir: Path, calendar_file: P
     """
     if output_dir.exists():
         raise FileExistsError(f'Output exists; choose a new directory: {output_dir}')
-    source = load_years(ohlcv_dir, 'csi300_daily_{year}.parquet', range(2015, 2027), ('open', 'high', 'low', 'close', 'volume'))
+    source = load_years(
+        ohlcv_dir,
+        'csi300_daily_{year}.parquet',
+        range(2015, 2027),
+        ('open', 'high', 'low', 'close', 'volume'),
+    )
     raw = load_years(raw_dir, 'csi300_factors_{year}.parquet', range(2015, 2027), FACTORS)
     if calendar_file:
-        calendar = pd.DatetimeIndex(pd.to_datetime(pd.read_csv(calendar_file, header=None).iloc[:, 0])).normalize().sort_values().unique()
+        calendar = (
+            pd.DatetimeIndex(pd.to_datetime(pd.read_csv(calendar_file, header=None).iloc[:, 0]))
+            .normalize()
+            .sort_values()
+            .unique()
+        )
         if not source.index.get_level_values('datetime').isin(calendar).all():
             raise ValueError('Verified calendar omits source dates')
         calendar_status = 'provided_calendar_not_independently_certified'
@@ -179,17 +247,43 @@ def run_audit(ohlcv_dir: Path, raw_dir: Path, output_dir: Path, calendar_file: P
     expected = recompute_panel(source, calendar, raw.index)
     summary, examples = compare_values(expected, raw, atol, rtol)
     missing_source_keys = int((~raw.index.isin(source.index)).sum())
-    report = {'status': 'PASS' if int(summary.failed.sum()) == 0 and missing_source_keys == 0 else 'FAIL_REQUIRES_ATTRIBUTION', 'raw_rows': len(raw), 'source_rows': len(source), 'factors': len(FACTORS), 'total_numeric_fail': int(summary.numeric_fail.sum()), 'total_missing_mismatch': int(summary.missing_mismatch.sum()), 'stored_keys_without_ohlcv': missing_source_keys, 'calendar_status': calendar_status, 'atol': atol, 'rtol': rtol, 'limitations': ['Source OHLCV version and adjustment lineage not independently authenticated', 'Historical universe membership PIT not independently certified', 'Enhanced values may differ by design and are not presumed equal to Raw']}
+    report = {
+        'status': (
+            'PASS'
+            if int(summary.failed.sum()) == 0 and missing_source_keys == 0
+            else 'FAIL_REQUIRES_ATTRIBUTION'
+        ),
+        'raw_rows': len(raw),
+        'source_rows': len(source),
+        'factors': len(FACTORS),
+        'total_numeric_fail': int(summary.numeric_fail.sum()),
+        'total_missing_mismatch': int(summary.missing_mismatch.sum()),
+        'stored_keys_without_ohlcv': missing_source_keys,
+        'calendar_status': calendar_status,
+        'atol': atol,
+        'rtol': rtol,
+        'limitations': [
+            'Source OHLCV version and adjustment lineage not independently authenticated',
+            'Historical universe membership PIT not independently certified',
+            'Enhanced values may differ by design and are not presumed equal to Raw',
+        ],
+    }
     output_dir.mkdir(parents=True)
     summary.to_csv(output_dir / 'factor_value_summary.csv', index=False)
     examples.to_csv(output_dir / 'factor_value_discrepancies.csv', index=False)
     if enhanced_dir:
-        enhanced = load_years(enhanced_dir, 'csi300_factors_{year}.parquet', range(2015, 2027), FACTORS)
+        enhanced = load_years(
+            enhanced_dir, 'csi300_factors_{year}.parquet', range(2015, 2027), FACTORS
+        )
         common = raw.index.intersection(enhanced.index)
-        enhanced_summary, enhanced_examples = compare_values(raw.loc[common, list(FACTORS)], enhanced.loc[common, list(FACTORS)], atol, rtol)
+        enhanced_summary, enhanced_examples = compare_values(
+            raw.loc[common, list(FACTORS)], enhanced.loc[common, list(FACTORS)], atol, rtol
+        )
         enhanced_summary.to_csv(output_dir / 'raw_enhanced_overlap_summary.csv', index=False)
         enhanced_examples.to_csv(output_dir / 'raw_enhanced_overlap_examples.csv', index=False)
         report['raw_enhanced_overlap_rows'] = len(common)
         report['raw_enhanced_difference_count'] = int(enhanced_summary.failed.sum())
-    (output_dir / 'factor_value_audit.json').write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8')
+    (output_dir / 'factor_value_audit.json').write_text(
+        json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8'
+    )
     return report

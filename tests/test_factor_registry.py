@@ -1,6 +1,12 @@
 """Unit tests for registry metadata and non-destructive persistence."""
 import pytest
-from factor_registry import FACTOR_NAMES, build_registry, load_registry, validate_registry, write_registry
+from factor_registry import (
+    FACTOR_NAMES,
+    build_registry,
+    load_registry,
+    validate_registry,
+    write_registry,
+)
 
 
 def test_inventory():
@@ -27,7 +33,10 @@ def test_no_unverified_formula_claims():
     Notes:
         Source expressions must be inspected separately.
     """
-    assert all(row['formula'] is None and not row['formula_verified'] for row in build_registry()['factors'])
+    assert all(
+        row['formula'] is None and not row['formula_verified']
+        for row in build_registry()['factors']
+    )
 
 
 def test_persistence_does_not_overwrite(tmp_path):

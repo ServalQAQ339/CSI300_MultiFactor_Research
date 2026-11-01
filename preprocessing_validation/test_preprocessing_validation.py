@@ -20,7 +20,10 @@ def test_preprocessing_validation() -> None:
     dates = pd.bdate_range("2024-01-02", periods=8)
     instruments = [f"SH{i:06d}" for i in range(20)]
     index = pd.MultiIndex.from_product([dates, instruments], names=["datetime", "instrument"])
-    panel = pd.DataFrame({"MOM_20": rng.normal(size=len(index)), "VOLATILITY_20": rng.normal(size=len(index))}, index=index)
+    panel = pd.DataFrame(
+        {"MOM_20": rng.normal(size=len(index)), "VOLATILITY_20": rng.normal(size=len(index))},
+        index=index,
+    )
     panel.loc[(dates[0], instruments[0]), "MOM_20"] = np.nan
     panel.loc[(dates[1], instruments[1]), "MOM_20"] = np.inf
     for method in ("raw", "rank_uniform", "rank_gaussian", "robust"):

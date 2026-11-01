@@ -4,7 +4,14 @@ import numpy as np
 import pandas as pd
 
 
-def align(factors: pd.DataFrame, labels: pd.DataFrame, factor_cols: list[str], label_col: str, date_col: str = 'date', asset_col: str = 'instrument') -> tuple[pd.DataFrame, dict]:
+def align(
+    factors: pd.DataFrame,
+    labels: pd.DataFrame,
+    factor_cols: list[str],
+    label_col: str,
+    date_col: str = 'date',
+    asset_col: str = 'instrument',
+) -> tuple[pd.DataFrame, dict]:
     """Description: Join factor and label observations without imputing missing data.
 
     Parameters:
@@ -25,12 +32,27 @@ def align(factors: pd.DataFrame, labels: pd.DataFrame, factor_cols: list[str], l
             raise ValueError(f'Duplicate keys in {name}')
     if label_col in factors.columns:
         raise ValueError('Label column already exists in factors')
-    joined = factors[keys + factor_cols].merge(labels[keys + [label_col]], on=keys, how='left', validate='one_to_one', indicator=True)
-    audit = {'factor_rows': len(factors), 'label_rows': len(labels), 'matched_rows': int(joined['_merge'].eq('both').sum()), 'label_finite_rows': int(np.isfinite(pd.to_numeric(joined[label_col], errors='coerce')).sum())}
+    joined = factors[keys + factor_cols].merge(
+        labels[keys + [label_col]], on=keys, how='left', validate='one_to_one', indicator=True
+    )
+    audit = {
+        'factor_rows': len(factors),
+        'label_rows': len(labels),
+        'matched_rows': int(joined['_merge'].eq('both').sum()),
+        'label_finite_rows': int(
+            np.isfinite(pd.to_numeric(joined[label_col], errors='coerce')).sum()
+        ),
+    }
     return joined.drop(columns='_merge'), audit
 
 
-def daily_ic(panel: pd.DataFrame, factor_cols: list[str], label_col: str, date_col: str = 'date', min_n: int = 30) -> pd.DataFrame:
+def daily_ic(
+    panel: pd.DataFrame,
+    factor_cols: list[str],
+    label_col: str,
+    date_col: str = 'date',
+    min_n: int = 30,
+) -> pd.DataFrame:
     """Description: Compute Pearson and tie-aware Spearman correlations per signal date.
 
     Parameters:
@@ -51,8 +73,21 @@ def daily_ic(panel: pd.DataFrame, factor_cols: list[str], label_col: str, date_c
             x = pd.to_numeric(day[factor], errors='coerce').replace([np.inf, -np.inf], np.nan)
             ok = x.notna() & y.notna()
             n = int(ok.sum())
-            status = 'ok' if n >= min_n and x[ok].nunique() > 1 and y[ok].nunique() > 1 else ('insufficient' if n < min_n else 'constant')
-            out.append({date_col: date, 'factor': factor, 'n_paired': n, 'ic': x[ok].corr(y[ok], method='pearson') if status == 'ok' else np.nan, 'rank_ic': x[ok].corr(y[ok], method='spearman') if status == 'ok' else np.nan, 'status': status})
+            status = (
+                'ok'
+                if n >= min_n and x[ok].nunique() > 1 and y[ok].nunique() > 1
+                else ('insufficient' if n < min_n else 'constant')
+            )
+            out.append(
+                {
+                    date_col: date,
+                    'factor': factor,
+                    'n_paired': n,
+                    'ic': x[ok].corr(y[ok], method='pearson') if status == 'ok' else np.nan,
+                    'rank_ic': x[ok].corr(y[ok], method='spearman') if status == 'ok' else np.nan,
+                    'status': status,
+                }
+            )
     return pd.DataFrame(out)
 
 
@@ -68,22 +103,49 @@ def hac_mean(values: pd.Series, lags: int = 4) -> dict:
         Uses autocovariances normalized by T, equivalent to Bartlett HAC for an intercept-only regression.
         Missing dates are not assumed independent; inspect temporal gaps before inference.
     """
-    x = pd.to_numeric(values, errors='coerce').replace([np.inf, -np.inf], np.nan).dropna().to_numpy(dtype=float)
+    x = (
+        pd.to_numeric(values, errors='coerce')
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+        .to_numpy(dtype=float)
+    )
     n = len(x)
     if lags < 0:
         raise ValueError('lags must be nonnegative')
     if n < 2:
-        return {'n': n, 'mean': np.nan, 'std': np.nan, 'icir': np.nan, 'hac_se': np.nan, 'hac_t': np.nan}
+        return {
+            'n': n,
+            'mean': np.nan,
+            'std': np.nan,
+            'icir': np.nan,
+            'hac_se': np.nan,
+            'hac_t': np.nan,
+        }
     mean = float(x.mean()); std = float(x.std(ddof=1)); e = x - mean
     lag = min(lags, n - 1)
     long_var = float(np.dot(e, e) / n)
     for k in range(1, lag + 1):
         long_var += 2 * (1 - k / (lag + 1)) * float(np.dot(e[k:], e[:-k]) / n)
     se = float(np.sqrt(max(long_var, 0) / n))
-    return {'n': n, 'mean': mean, 'std': std, 'icir': mean / std if std > 0 else np.nan, 'hac_se': se, 'hac_t': mean / se if se > 0 else np.nan}
+    return {
+        'n': n,
+        'mean': mean,
+        'std': std,
+        'icir': mean / std if std > 0 else np.nan,
+        'hac_se': se,
+        'hac_t': mean / se if se > 0 else np.nan,
+    }
 
 
-def quantile_returns(panel: pd.DataFrame, factor: str, label_col: str, date_col: str = 'date', asset_col: str = 'instrument', groups: int = 5, min_n: int = 30) -> pd.DataFrame:
+def quantile_returns(
+    panel: pd.DataFrame,
+    factor: str,
+    label_col: str,
+    date_col: str = 'date',
+    asset_col: str = 'instrument',
+    groups: int = 5,
+    min_n: int = 30,
+) -> pd.DataFrame:
     """Description: Compute daily equal-weighted forward returns of deterministic factor quantiles.
 
     Parameters:
@@ -104,7 +166,8 @@ def quantile_returns(panel: pd.DataFrame, factor: str, label_col: str, date_col:
     rows = []
     for date, day in panel.groupby(date_col, sort=True):
         z = day[[asset_col, factor, label_col]].copy()
-        z[factor] = pd.to_numeric(z[factor], errors='coerce'); z[label_col] = pd.to_numeric(z[label_col], errors='coerce')
+        z[factor] = pd.to_numeric(z[factor], errors='coerce')
+        z[label_col] = pd.to_numeric(z[label_col], errors='coerce')
         z = z.replace([np.inf, -np.inf], np.nan).dropna(subset=[factor, label_col])
         if len(z) < max(min_n, groups) or z[factor].nunique() < 2:
             continue

@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 
 
-def load_annual_panels(directory: Path, prefix: str, start_year: int, end_year: int) -> pd.DataFrame:
+def load_annual_panels(
+    directory: Path, prefix: str, start_year: int, end_year: int
+) -> pd.DataFrame:
     """Load and concatenate annual research panels.
 
     Parameters:
@@ -20,7 +22,9 @@ def load_annual_panels(directory: Path, prefix: str, start_year: int, end_year: 
     Notes:
         Raises an error for missing files or duplicated keys instead of silently repairing them.
     """
-    paths = [Path(directory) / f"{prefix}{year}.parquet" for year in range(start_year, end_year + 1)]
+    paths = [
+        Path(directory) / f"{prefix}{year}.parquet" for year in range(start_year, end_year + 1)
+    ]
     missing = [str(path) for path in paths if not path.exists()]
     if missing:
         raise FileNotFoundError(f"Missing annual files: {missing}")
@@ -31,7 +35,13 @@ def load_annual_panels(directory: Path, prefix: str, start_year: int, end_year: 
     return panel
 
 
-def audit_factor_panels(prices: pd.DataFrame, factors: pd.DataFrame, calendar: pd.DatetimeIndex, entry_window: int = 60, boundary_window: int = 20) -> dict[str, pd.DataFrame]:
+def audit_factor_panels(
+    prices: pd.DataFrame,
+    factors: pd.DataFrame,
+    calendar: pd.DatetimeIndex,
+    entry_window: int = 60,
+    boundary_window: int = 20,
+) -> dict[str, pd.DataFrame]:
     """Produce independent data-integrity and factor-coverage audit tables.
 
     Parameters:
@@ -65,11 +75,28 @@ def audit_factor_panels(prices: pd.DataFrame, factors: pd.DataFrame, calendar: p
     dates = factors.index.get_level_values("datetime")
     instruments = factors.index.get_level_values("instrument")
     years = dates.year
-    finite = pd.DataFrame(np.isfinite(numeric.to_numpy(dtype="float64")), index=numeric.index, columns=numeric.columns)
+    finite = pd.DataFrame(
+        np.isfinite(numeric.to_numpy(dtype="float64")), index=numeric.index, columns=numeric.columns
+    )
     valid = finite & numeric.notna()
     index_only_factor = factors.index.difference(prices.index)
     index_only_price = prices.index.difference(factors.index)
-    integrity = pd.DataFrame([{"price_rows": len(prices), "factor_rows": len(factors), "factor_only_rows": len(index_only_factor), "price_only_rows": len(index_only_price), "duplicate_factor_keys": int(factors.index.duplicated().sum()), "duplicate_price_keys": int(prices.index.duplicated().sum()), "factor_nonfinite_cells": int((~finite & numeric.notna()).to_numpy().sum()), "factor_columns": len(numeric.columns), "unique_stocks": instruments.nunique(), "unique_dates": dates.nunique()}])
+    integrity = pd.DataFrame(
+        [
+            {
+                "price_rows": len(prices),
+                "factor_rows": len(factors),
+                "factor_only_rows": len(index_only_factor),
+                "price_only_rows": len(index_only_price),
+                "duplicate_factor_keys": int(factors.index.duplicated().sum()),
+                "duplicate_price_keys": int(prices.index.duplicated().sum()),
+                "factor_nonfinite_cells": int((~finite & numeric.notna()).to_numpy().sum()),
+                "factor_columns": len(numeric.columns),
+                "unique_stocks": instruments.nunique(),
+                "unique_dates": dates.nunique(),
+            }
+        ]
+    )
     factor_year_rows = []
     stock_year_rows = []
     for year in sorted(years.unique()):
@@ -79,13 +106,43 @@ def audit_factor_panels(prices: pd.DataFrame, factors: pd.DataFrame, calendar: p
         for col in numeric.columns:
             s = frame[col]
             finite_s = s.where(v[col])
-            factor_year_rows.append({"year": int(year), "factor": col, "rows": len(s), "valid_count": int(v[col].sum()), "coverage": float(v[col].mean()), "nan_count": int(s.isna().sum()), "inf_count": int(np.isinf(s.to_numpy(dtype="float64")).sum()), "unique_valid_values": int(finite_s.nunique()), "is_constant": bool(finite_s.nunique() <= 1), "mean": float(finite_s.mean()), "std": float(finite_s.std()), "p01": float(finite_s.quantile(0.01)), "median": float(finite_s.median()), "p99": float(finite_s.quantile(0.99))})
+            factor_year_rows.append(
+                {
+                    "year": int(year),
+                    "factor": col,
+                    "rows": len(s),
+                    "valid_count": int(v[col].sum()),
+                    "coverage": float(v[col].mean()),
+                    "nan_count": int(s.isna().sum()),
+                    "inf_count": int(np.isinf(s.to_numpy(dtype="float64")).sum()),
+                    "unique_valid_values": int(finite_s.nunique()),
+                    "is_constant": bool(finite_s.nunique() <= 1),
+                    "mean": float(finite_s.mean()),
+                    "std": float(finite_s.std()),
+                    "p01": float(finite_s.quantile(0.01)),
+                    "median": float(finite_s.median()),
+                    "p99": float(finite_s.quantile(0.99)),
+                }
+            )
         by_stock = v.groupby(level="instrument").mean()
         for stock, row in by_stock.iterrows():
-            stock_year_rows.append({"year": int(year), "instrument": stock, "rows": int((instruments[mask] == stock).sum()), "mean_coverage": float(row.mean()), "min_factor_coverage": float(row.min())})
+            stock_year_rows.append(
+                {
+                    "year": int(year),
+                    "instrument": stock,
+                    "rows": int((instruments[mask] == stock).sum()),
+                    "mean_coverage": float(row.mean()),
+                    "min_factor_coverage": float(row.min()),
+                }
+            )
     factor_year = pd.DataFrame(factor_year_rows)
     stock_year = pd.DataFrame(stock_year_rows)
-    year_summary = factor_year.groupby("year", as_index=False).agg(mean_factor_coverage=("coverage", "mean"), min_factor_coverage=("coverage", "min"), constant_factor_count=("is_constant", "sum"), total_inf_cells=("inf_count", "sum"))
+    year_summary = factor_year.groupby("year", as_index=False).agg(
+        mean_factor_coverage=("coverage", "mean"),
+        min_factor_coverage=("coverage", "min"),
+        constant_factor_count=("is_constant", "sum"),
+        total_inf_cells=("inf_count", "sum"),
+    )
     year_summary["rows"] = [int((years == year).sum()) for year in year_summary["year"]]
     boundary_rows = []
     for year in sorted(years.unique()):
@@ -95,24 +152,75 @@ def audit_factor_panels(prices: pd.DataFrame, factors: pd.DataFrame, calendar: p
         first_mask = mask & dates.isin(first_dates)
         rest_mask = mask & ~dates.isin(first_dates)
         for col in numeric.columns:
-            boundary_rows.append({"year": int(year), "factor": col, "first_sessions_rows": int(first_mask.sum()), "first_sessions_coverage": float(valid.loc[first_mask, col].mean()) if first_mask.any() else np.nan, "remaining_rows": int(rest_mask.sum()), "remaining_coverage": float(valid.loc[rest_mask, col].mean()) if rest_mask.any() else np.nan})
+            boundary_rows.append(
+                {
+                    "year": int(year),
+                    "factor": col,
+                    "first_sessions_rows": int(first_mask.sum()),
+                    "first_sessions_coverage": (
+                        float(valid.loc[first_mask, col].mean()) if first_mask.any() else np.nan
+                    ),
+                    "remaining_rows": int(rest_mask.sum()),
+                    "remaining_coverage": (
+                        float(valid.loc[rest_mask, col].mean()) if rest_mask.any() else np.nan
+                    ),
+                }
+            )
     year_boundary = pd.DataFrame(boundary_rows)
     session_position = pd.Series(np.arange(len(calendar)), index=calendar)
-    first_seen = pd.DataFrame({"instrument": instruments, "datetime": dates}).groupby("instrument")["datetime"].min()
+    first_seen = (
+        pd.DataFrame({"instrument": instruments, "datetime": dates})
+        .groupby("instrument")["datetime"]
+        .min()
+    )
     first_seen_pos = dict(zip(first_seen.index, session_position.reindex(first_seen).to_numpy()))
     observed_pos = session_position.reindex(dates).to_numpy()
     initial_pos = np.array([first_seen_pos[stock] for stock in instruments])
     age = observed_pos - initial_pos
     first_rows = []
-    for window_label, mask in (("first_observed_0_to_19", (age >= 0) & (age < min(entry_window, 20))), ("first_observed_0_to_59", (age >= 0) & (age < entry_window)), ("later_observations", age >= entry_window)):
+    for window_label, mask in (
+        ("first_observed_0_to_19", (age >= 0) & (age < min(entry_window, 20))),
+        ("first_observed_0_to_59", (age >= 0) & (age < entry_window)),
+        ("later_observations", age >= entry_window),
+    ):
         for col in numeric.columns:
-            first_rows.append({"cohort": window_label, "factor": col, "rows": int(mask.sum()), "coverage": float(valid.loc[mask, col].mean()) if mask.any() else np.nan})
+            first_rows.append(
+                {
+                    "cohort": window_label,
+                    "factor": col,
+                    "rows": int(mask.sum()),
+                    "coverage": float(valid.loc[mask, col].mean()) if mask.any() else np.nan,
+                }
+            )
     first_observed = pd.DataFrame(first_rows)
-    cross_section = pd.DataFrame({"datetime": dates, "valid_factor_count": valid.sum(axis=1).to_numpy()}).groupby("datetime", as_index=False).agg(stocks=("valid_factor_count", "size"), mean_valid_factors=("valid_factor_count", "mean"), zero_valid_factor_stocks=("valid_factor_count", lambda s: int((s == 0).sum())))
-    return {"integrity": integrity, "factor_year": factor_year, "year_summary": year_summary, "year_boundary": year_boundary, "first_observed": first_observed, "stock_year": stock_year, "cross_section": cross_section}
+    cross_section = (
+        pd.DataFrame({"datetime": dates, "valid_factor_count": valid.sum(axis=1).to_numpy()})
+        .groupby("datetime", as_index=False)
+        .agg(
+            stocks=("valid_factor_count", "size"),
+            mean_valid_factors=("valid_factor_count", "mean"),
+            zero_valid_factor_stocks=("valid_factor_count", lambda s: int((s == 0).sum())),
+        )
+    )
+    return {
+        "integrity": integrity,
+        "factor_year": factor_year,
+        "year_summary": year_summary,
+        "year_boundary": year_boundary,
+        "first_observed": first_observed,
+        "stock_year": stock_year,
+        "cross_section": cross_section,
+    }
 
 
-def run_factor_audit(price_dir: Path, factor_dir: Path, report_dir: Path, calendar: pd.DatetimeIndex, start_year: int, end_year: int) -> dict[str, pd.DataFrame]:
+def run_factor_audit(
+    price_dir: Path,
+    factor_dir: Path,
+    report_dir: Path,
+    calendar: pd.DatetimeIndex,
+    start_year: int,
+    end_year: int,
+) -> dict[str, pd.DataFrame]:
     """Run the full audit and export each report as a CSV file.
 
     Parameters:

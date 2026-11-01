@@ -6,7 +6,13 @@ import pandas as pd
 FIELDS = ("$open", "$high", "$low", "$close", "$volume")
 
 
-def load_extended_history(target: pd.DataFrame, calendar: pd.DatetimeIndex, lookback: int = 61, batch_size: int = 80, fetcher=None) -> tuple[pd.DataFrame, pd.DatetimeIndex]:
+def load_extended_history(
+    target: pd.DataFrame,
+    calendar: pd.DatetimeIndex,
+    lookback: int = 61,
+    batch_size: int = 80,
+    fetcher=None,
+) -> tuple[pd.DataFrame, pd.DatetimeIndex]:
     """Load historical prices for all instruments eligible during a target year.
 
     Description:
@@ -29,7 +35,11 @@ def load_extended_history(target: pd.DataFrame, calendar: pd.DatetimeIndex, look
         adjustment may be retrospective and needs a separate point-in-time audit.
         Missing or nonpositive market values are left to the factor engine to handle.
     """
-    if not isinstance(target.index, pd.MultiIndex) or set(target.index.names) != {"datetime", "instrument"} or target.empty:
+    if (
+        not isinstance(target.index, pd.MultiIndex)
+        or set(target.index.names) != {"datetime", "instrument"}
+        or target.empty
+    ):
         raise ValueError("Target must have nonempty (datetime, instrument) index")
     if lookback < 1 or batch_size < 1:
         raise ValueError("lookback and batch_size must be positive")
@@ -50,12 +60,25 @@ def load_extended_history(target: pd.DataFrame, calendar: pd.DatetimeIndex, look
     parts = []
     for offset in range(0, len(instruments), batch_size):
         batch = instruments[offset:offset + batch_size]
-        frame = fetch(instruments=batch, fields=list(FIELDS), start_time=str(start.date()), end_time=str(last.date()), freq="day")
+        frame = fetch(
+            instruments=batch,
+            fields=list(FIELDS),
+            start_time=str(start.date()),
+            end_time=str(last.date()),
+            freq="day",
+        )
         if frame is None or frame.empty:
             continue
-        if not isinstance(frame.index, pd.MultiIndex) or set(frame.index.names) != {"datetime", "instrument"}:
+        if not isinstance(frame.index, pd.MultiIndex) or set(frame.index.names) != {
+            "datetime",
+            "instrument",
+        }:
             raise ValueError("Qlib returned an unexpected index")
-        frame = frame.rename(columns={name: name[1:] for name in FIELDS}).reorder_levels(["datetime", "instrument"]).sort_index()
+        frame = (
+            frame.rename(columns={name: name[1:] for name in FIELDS})
+            .reorder_levels(["datetime", "instrument"])
+            .sort_index()
+        )
         frame = frame.loc[frame.index.get_level_values("datetime").isin(window_calendar)]
         frame = frame.loc[frame.index.get_level_values("instrument").isin(batch)]
         parts.append(frame)

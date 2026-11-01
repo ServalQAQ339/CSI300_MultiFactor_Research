@@ -72,6 +72,7 @@ def run_missing_diagnostics() -> pd.DataFrame:
 
     return report
 
+
 if __name__ == "__main__":
     RUN_MODE = "missing"
 

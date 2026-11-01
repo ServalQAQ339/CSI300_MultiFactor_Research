@@ -2,7 +2,14 @@
 from __future__ import annotations
 
 BASE = ['OPEN_CLOSE_RATIO', 'HIGH_LOW_RANGE', 'CLOSE_LOCATION']
-FAMILIES = {'MOM': 'momentum', 'MA_RATIO': 'moving_average', 'VOLATILITY': 'volatility', 'VOLUME_RATIO': 'volume', 'HIGH_POSITION': 'price_position', 'LOW_POSITION': 'price_position'}
+FAMILIES = {
+    'MOM': 'momentum',
+    'MA_RATIO': 'moving_average',
+    'VOLATILITY': 'volatility',
+    'VOLUME_RATIO': 'volume',
+    'HIGH_POSITION': 'price_position',
+    'LOW_POSITION': 'price_position',
+}
 WINDOWS = (5, 10, 20, 60)
 FACTOR_NAMES = tuple(BASE + [f'{prefix}_{window}' for window in WINDOWS for prefix in FAMILIES])
 

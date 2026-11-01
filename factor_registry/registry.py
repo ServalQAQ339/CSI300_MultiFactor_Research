@@ -18,8 +18,27 @@ def build_registry(source_file: str = 'factors/factor_engine.py') -> dict:
     """
     factors = []
     for name in FACTOR_NAMES:
-        factors.append({'factor_id': f'original27:{name}:v1', 'name': name, 'library': 'original27', 'version': 1, **metadata_for(name), 'formula': None, 'formula_verified': False, 'source_file': source_file, 'status': 'implemented_definition_pending_audit', 'requires': [], 'availability_rule': None})
-    return {'schema_version': 1, 'created_at_utc': datetime.now(timezone.utc).isoformat(), 'factor_count': len(factors), 'factors': factors}
+        factors.append(
+            {
+                'factor_id': f'original27:{name}:v1',
+                'name': name,
+                'library': 'original27',
+                'version': 1,
+                **metadata_for(name),
+                'formula': None,
+                'formula_verified': False,
+                'source_file': source_file,
+                'status': 'implemented_definition_pending_audit',
+                'requires': [],
+                'availability_rule': None,
+            }
+        )
+    return {
+        'schema_version': 1,
+        'created_at_utc': datetime.now(timezone.utc).isoformat(),
+        'factor_count': len(factors),
+        'factors': factors,
+    }
 
 
 def write_registry(path: str | Path, registry: dict, overwrite: bool = False) -> Path:

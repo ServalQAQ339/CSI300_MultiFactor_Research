@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -22,7 +21,12 @@ def audit_annual_panel(df: pd.DataFrame, year: int) -> dict:
         OHLC checks assume prices share a consistent adjustment basis.
         Zero volume is flagged for investigation rather than automatically removed.
     """
-    result = {"year": year, "rows": len(df), "unique_stocks": df.index.get_level_values("instrument").nunique(), "unique_dates": df.index.get_level_values("datetime").nunique()}
+    result = {
+        "year": year,
+        "rows": len(df),
+        "unique_stocks": df.index.get_level_values("instrument").nunique(),
+        "unique_dates": df.index.get_level_values("datetime").nunique(),
+    }
     result["duplicate_index"] = int(df.index.duplicated().sum())
 
     for col in ["open", "high", "low", "close", "volume", "factor"]:
@@ -34,7 +38,12 @@ def audit_annual_panel(df: pd.DataFrame, year: int) -> dict:
     result["negative_volume_rows"] = int((df["volume"] < 0).sum())
     result["zero_volume_rows"] = int((df["volume"] == 0).sum())
     result["invalid_high_low_rows"] = int((df["high"] < df["low"]).sum())
-    result["invalid_ohlc_rows"] = int(((df["high"] < df[["open", "close"]].max(axis=1)) | (df["low"] > df[["open", "close"]].min(axis=1))).sum())
+    result["invalid_ohlc_rows"] = int(
+        (
+            (df["high"] < df[["open", "close"]].max(axis=1))
+            | (df["low"] > df[["open", "close"]].min(axis=1))
+        ).sum()
+    )
 
     return result
 
@@ -96,6 +105,15 @@ def diagnose_missing_patterns(df: pd.DataFrame, year: int) -> pd.DataFrame:
         groups = missing.ne(missing.shift()).cumsum()
         longest_missing = int(missing.groupby(groups).sum().max()) if len(missing) else 0
 
-        results.append({"year": year, "instrument": instrument, "observations": len(stock_df), "missing_count": int(missing.sum()), "missing_ratio": float(missing.mean()), "longest_missing_sequence": longest_missing})
+        results.append(
+            {
+                "year": year,
+                "instrument": instrument,
+                "observations": len(stock_df),
+                "missing_count": int(missing.sum()),
+                "missing_ratio": float(missing.mean()),
+                "longest_missing_sequence": longest_missing,
+            }
+        )
 
     return pd.DataFrame(results).sort_values(["missing_ratio", "missing_count"], ascending=False)

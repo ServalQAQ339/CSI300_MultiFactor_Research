@@ -17,7 +17,9 @@ def main() -> None:
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-root', type=Path, default=DATA_ROOT)
-    parser.add_argument('--output', type=Path, default=DATA_ROOT / 'reports/factor_research/raw_5d_v12')
+    parser.add_argument(
+        '--output', type=Path, default=DATA_ROOT / 'reports/factor_research/raw_5d_v12'
+    )
     parser.add_argument('--min-n', type=int, default=30)
     args = parser.parse_args()
     audit = run(args.data_root, args.output, args.min_n)
