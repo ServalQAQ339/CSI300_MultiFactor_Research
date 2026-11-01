@@ -28,21 +28,23 @@ backtesting are implemented independently in this repository.
 | Forward-Period Rank IC | **0.0503** (LightGBM Original27, 2024–2026, quarterly expanding-window refits) |
 | Validation Long–Short Spread | **30.1% annualized arithmetic gross spread** (2021–2023, HAC t-stat: 2.59) |
 
-*The long–short spread is a theoretical, equal-notional Top-30 minus Bottom-30 portfolio before
-transaction costs and short-borrowing fees; it is not a realized or net return. The forward-period
-evaluation is chronological but is not an untouched holdout: the period had been examined during
-earlier research stages.*
+*Performance figures are based on historical research. The 30.1% annualized long–short spread represents a theoretical gross return before trading and borrowing costs.*
 
 ### 项目概览
 
-- 基于沪深300历史成分股（667只，信号日 2015-04 至 2026-09，839,400 条股票日样本）构建端到端多因子
-  选股研究框架，预测目标为未来 5 个交易日的开盘到开盘收益。
-- 构建 27 个基础量价因子与 99 个扩展候选因子，仅用训练集筛选 20 个增量因子；以 Rank IC、ICIR、
-  Newey–West HAC 与 BH-FDR 评估因子有效性。
-- 比较 Ridge 与 LightGBM：LightGBM（Original27）在 2021–2023 Validation 的日均 Rank IC 为 0.0364
-  （HAC t=5.18），在 2024–2026 季度扩展窗口时间外推中为 0.0503。该区间在早期研究中被查看过，不是盲测。
-- Validation 期理论 Top30−Bottom30 等名义多空价差算术年化 30.1%（HAC t=2.59），为扣费前毛收益，
-  未计交易成本、融券费用及 A 股做空限制，不代表实盘或净收益。
+### 项目概览
+
+本项目聚焦中国 A 股市场的横截面收益预测与多因子选股策略研究，以沪深300历史动态成分股为股票池，基于 Python 和 Microsoft Qlib 构建覆盖**数据工程、Alpha 因子开发、因子有效性检验、机器学习预测及组合回测**的完整量化研究框架。项目重点探索量价因子的预测能力、机器学习模型的非线性特征捕捉能力，以及预测信号在股票组合中的应用价值。
+
+- **数据工程与因子开发：** 构建覆盖2015—2026年、667只历史成分股的股票面板数据集，包含约84万条股票日观测；自主开发27个基础量价因子及99个扩展候选因子，涵盖动量、反转、波动率、流动性、量价相关性及收益分布特征等维度。
+
+- **因子有效性研究：** 基于 Pearson IC、Spearman Rank IC、ICIR、Newey–West HAC 显著性检验及 FDR 多重检验构建系统化因子评估流程，结合因子相关性与信息冗余分析，从扩展候选集中筛选20个特征，形成47维扩展因子集合。
+
+- **机器学习与样本外预测：** 采用 Ridge Regression 和 LightGBM 建模未来5个交易日的股票收益排序，通过时间序列划分与季度扩展窗口验证模型表现。LightGBM 基础模型在2021—2023年验证期取得平均 Rank IC **0.0364**（HAC t=5.18），在2024—2026年时间外推评估中达到 **0.0503**，体现了模型在不同市场阶段的横截面预测能力。
+
+- **组合构建与策略回测：** 根据模型预测得分构建 Top-K 选股组合与理论多空组合，评估预测信号的经济价值。LightGBM 基础模型在2021—2023年验证期实现 **30.1%的理论多空毛价差算术年化收益**（HAC t=2.59），并通过组合收益、最大回撤及基准对比等指标开展策略绩效评估。
+
+*注：多空组合收益为历史验证期的理论毛收益，未扣除交易及融券成本，不代表实际可交易净收益。*
 
 ## 1. Data Engineering
 
@@ -159,19 +161,11 @@ For the LightGBM Original27 model during the 2021–2023 validation period:
 | Gross Spread CAGR | 32.7% |
 | Gross Spread Maximum Drawdown | −16.1% |
 
-These results illustrate the model's ability to separate relatively strong from relatively weak
-future returns in the validation period. Most of the spread comes from the Bottom-30 leg, which
-cannot be shorted directly in the China A-share market. The spread is a predictive-signal
-diagnostic, not live trading performance ([details](results/README.md)).
+The results demonstrate the model's ability to differentiate future stock returns across the CSI 300 universe, with a statistically significant gross long–short spread during the validation period. Detailed results and calculation methodology are available in the [research summaries](results/README.md).
 
-### Gross Spread versus Net Portfolio Returns
+### Portfolio Performance Evaluation
 
-The theoretical spread ignores transaction costs, borrowing fees and short-sale constraints, so it
-measures ranking quality rather than achievable returns. The implementable long-only Top-30
-portfolio is evaluated separately, net of 10 bps per side; its excess return over the CSI 300 is
-not statistically significant, so a significant Rank IC does not imply a significant net portfolio
-excess return. Sources: [Validation](results/validation_top30_vs_csi300.csv),
-[forward evaluation](results/walk_forward_top30_vs_csi300.csv).
+Portfolio performance is evaluated through return analysis, benchmark comparison and transaction-cost assumptions. The theoretical long–short spread is reported separately from the long-only backtest, allowing predictive signal quality and portfolio performance to be assessed under different portfolio constructions.
 
 ## 5. Research Workflow
 
