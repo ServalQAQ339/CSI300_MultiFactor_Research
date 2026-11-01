@@ -31,6 +31,7 @@ def calculate_endpoint_checks(
             f'exit_open_adjusted_{h}',
         ],
     ].copy()
+
     subset = subset.rename(
         columns={
             f'entry_date_{h}': 'entry_date',
@@ -40,6 +41,7 @@ def calculate_endpoint_checks(
             f'exit_open_adjusted_{h}': 'stored_exit',
         }
     )
+
     subset['signal_date'] = pd.to_datetime(subset['signal_date'])
     for col in ('entry_date', 'exit_date'):
         subset[col] = pd.to_datetime(subset[col])
@@ -47,6 +49,7 @@ def calculate_endpoint_checks(
     p['datetime'] = pd.to_datetime(p['datetime'])
     if p.duplicated(['instrument', 'datetime']).any():
         raise ValueError('Qlib price keys are not unique')
+
     for side in ('entry', 'exit'):
         endpoint = p.rename(
             columns={'datetime': f'{side}_date', 'open': f'{side}_open', 'factor': f'{side}_factor'}
@@ -58,6 +61,7 @@ def calculate_endpoint_checks(
             validate='many_to_one',
             indicator=f'{side}_merge',
         )
+
     a, b = subset['entry_open'].to_numpy(dtype=float), subset['exit_open'].to_numpy(dtype=float)
     fa, fb = subset['entry_factor'].to_numpy(dtype=float), subset['exit_factor'].to_numpy(
         dtype=float
@@ -72,6 +76,7 @@ def calculate_endpoint_checks(
         & (fa > 0)
         & (fb > 0)
     )
+
     subset['endpoint_valid'] = valid
     subset['recomputed_return'] = np.where(valid, b / a - 1, np.nan)
     subset['factor_ratio'] = np.where(valid, fb / fa, np.nan)
@@ -91,12 +96,14 @@ def calculate_endpoint_checks(
         ['label_error', 'decomposition_error', 'entry_price_error', 'exit_price_error']
     ].le(tolerance).all(axis=1)
     subset['horizon'] = horizon
+
     return subset
 
 
 def summarize_checks(checks: pd.DataFrame) -> dict:
     """Description: Aggregate audit checks by horizon. Parameters: checks (pd.DataFrame): endpoint audit results. Returns: dict: JSON-serializable counts and maximum errors. Notes: Numeric success is not a claim of economic correctness."""
     result = {}
+
     for h, part in checks.groupby('horizon'):
         result[str(h)] = {
             'valid_labels': int(len(part)),
@@ -116,6 +123,7 @@ def summarize_checks(checks: pd.DataFrame) -> dict:
                 else None
             ),
         }
+
     return result
 
 
@@ -123,16 +131,20 @@ def fetch_prices(provider_uri: str, stocks: list[str], start: str, end: str) -> 
     """Description: Read unfiltered Qlib adjusted opening prices and adjustment factors in batches. Parameters: provider_uri (str): Qlib binary directory; stocks (list[str]): label stock codes; start (str): first date; end (str): final date. Returns: pd.DataFrame: instrument-date open/factor panel. Notes: Does not filter to index membership, preserving post-removal exit prices."""
     import qlib
     from qlib.data import D
+
     qlib.init(provider_uri=provider_uri, region='cn')
     chunks = []
+
     for offset in range(0, len(stocks), 80):
         batch = stocks[offset:offset + 80]
         part = D.features(batch, ['$open', '$factor'], start_time=start, end_time=end, freq='day')
         if not part.empty:
             chunks.append(part.reset_index().rename(columns={'$open': 'open', '$factor': 'factor'}))
         print(f'Fetched {min(offset + 80, len(stocks))}/{len(stocks)} instruments', flush=True)
+
     if not chunks:
         raise ValueError('Qlib returned no price data')
+
     return pd.concat(chunks, ignore_index=True)
 
 
@@ -150,6 +162,7 @@ def main() -> None:
     reports = root / 'reports' / 'internal_return_audit'
     reports.mkdir(parents=True, exist_ok=True)
     all_checks = []
+
     for h in HORIZONS:
         checks = calculate_endpoint_checks(labels, prices, h, args.tolerance)
         all_checks.append(checks)
@@ -157,6 +170,7 @@ def main() -> None:
             f'Checked {h}D: {len(checks)} valid labels, {(~checks["audit_pass"]).sum()} failures',
             flush=True,
         )
+
     combined = pd.concat(all_checks, ignore_index=True)
     summary = {
         'source_label_rows': int(len(labels)),
@@ -169,6 +183,7 @@ def main() -> None:
             'Qlib data do not independently establish price PIT, index PIT or executable prices',
         ],
     }
+
     combined.loc[~combined['audit_pass']].to_csv(
         reports / 'return_consistency_failures.csv', index=False
     )

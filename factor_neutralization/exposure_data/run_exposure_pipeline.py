@@ -21,6 +21,7 @@ def main() -> None:
     a = p.parse_args()
     root = Path(a.root)
     out = Path(a.output)
+
     print(
         f'python -m factor_neutralization.exposure_data.build_universe --root "{root}" --output "{out}"'
     )

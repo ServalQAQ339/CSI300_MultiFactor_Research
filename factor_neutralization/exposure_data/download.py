@@ -24,11 +24,14 @@ def download_shares(
         Source snapshots are not PIT-certified merely because they were downloaded.
     """
     import akshare as ak
+
     output.mkdir(parents=True,exist_ok=True); status = {'success':0,'skipped':0,'failed':{}}
+
     for symbol in symbols:
         code = str(symbol).zfill(6)
         path = output / f'cninfo_shares_{code}_{start_date}_{end_date}.csv'
         if path.exists(): status['skipped'] += 1; continue
+
         try:
             df = ak.stock_share_change_cninfo(symbol=code,start_date=start_date,end_date=end_date)
             tmp = path.with_suffix('.tmp')
@@ -37,10 +40,13 @@ def download_shares(
             status['success'] += 1
         except Exception as exc:
             status['failed'][code] = f'{type(exc).__name__}: {exc}'
+
         time.sleep(max(0.0,delay))
+
     (output / 'download_status.json').write_text(
         json.dumps(status, ensure_ascii=False, indent=2), encoding='utf-8'
     )
+
     return status
 
 

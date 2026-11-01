@@ -29,13 +29,16 @@ def hac_summary(daily, metric, lag=4):
         'hac_se': np.nan,
         'hac_t': np.nan,
     }
+
     if n < 2: return result
     mean = float(np.nanmean(x)); std = float(np.nanstd(x, ddof=1)); e = x - mean
     if std <= 1e-14: result.update(mean=mean, std=0.0); return result
     long_var = float(np.nansum(e * e) / n)
+
     for k in range(1, min(lag, len(x)-1)+1):
         a, b = e[k:], e[:-k]; mask = np.isfinite(a) & np.isfinite(b)
         long_var += 2 * (1-k/(lag+1)) * float(np.sum(a[mask]*b[mask])/n)
+
     se = float(np.sqrt(max(long_var, 0)/n))
     result.update(
         mean=mean,
@@ -44,4 +47,5 @@ def hac_summary(daily, metric, lag=4):
         hac_se=se,
         hac_t=mean / se if se > 0 else np.nan,
     )
+
     return result

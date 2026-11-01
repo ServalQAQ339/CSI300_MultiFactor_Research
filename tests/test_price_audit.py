@@ -19,6 +19,7 @@ class TestPriceAudit(unittest.TestCase):
                 'factor': [0.0],
             }
         )
+
         issues, _ = summarize_price_audit(frame)
         self.assertIn('invalid_factor', issues['issue'].tolist())
 
@@ -33,5 +34,6 @@ class TestPriceAudit(unittest.TestCase):
                 'factor': [0.5, 0.6],
             }
         )
+
         _, changes = summarize_price_audit(frame)
         self.assertEqual(len(changes), 1)

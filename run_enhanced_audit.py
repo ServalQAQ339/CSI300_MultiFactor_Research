@@ -20,6 +20,7 @@ def run_complete_enhanced_audit(prefix_check: bool = True):
         The Qlib calendar begins in 2014 to cover the 2015 warm-up period.
     """
     calendar = None
+
     if prefix_check:
         try:
             from data.process import initialize_qlib, get_trading_calendar
@@ -27,6 +28,7 @@ def run_complete_enhanced_audit(prefix_check: bool = True):
             from data.data_loader import initialize_qlib, get_trading_calendar
         initialize_qlib()
         calendar = get_trading_calendar("2014-01-01", END_DATE)
+
     results = run_enhanced_audit(
         DATA_OUTPUT_DIR,
         DATA_ROOT / "data" / "factors",
@@ -36,11 +38,13 @@ def run_complete_enhanced_audit(prefix_check: bool = True):
         prefix_check=prefix_check,
     )
     print("\nYEAR COMPARISON\n", results["year_comparison"].to_string(index=False))
+
     if prefix_check:
         print(
             "\nPREFIX MISMATCHES\n",
             results["prefix_consistency"][["missing_mismatch", "value_mismatch"]].sum().to_string(),
         )
+
     return results
 
 

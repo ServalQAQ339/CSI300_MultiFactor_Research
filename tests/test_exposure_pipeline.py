@@ -22,6 +22,7 @@ def test_universe_observed_only(tmp_path, monkeypatch):
         [(pd.Timestamp('2015-04-01'), 'SZ000001'), (pd.Timestamp('2015-04-03'), 'SH600519')],
         names=['datetime', 'instrument'],
     )
+
     (folder / 'csi300_daily_2015.parquet').touch()
     monkeypatch.setattr(pd, 'read_parquet', lambda *args, **kwargs: pd.DataFrame(index=idx))
     d = extract_universe(tmp_path)

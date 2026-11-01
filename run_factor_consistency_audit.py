@@ -36,6 +36,7 @@ def main() -> None:
             'OPEN_CLOSE_RATIO',
         ],
     )
+
     p.add_argument('--min-n', type=int, default=30)
     p.add_argument('--tolerance', type=float, default=1e-10)
     args = p.parse_args()
@@ -46,6 +47,7 @@ def main() -> None:
     saved_ic['signal_date'] = pd.to_datetime(saved_ic['signal_date'])
     args.output.mkdir(parents=True, exist_ok=True)
     summaries, comparisons, details = [], [], []
+
     for factor in args.factors:
         if factor not in factors.columns: raise ValueError(f'Unknown factor: {factor}')
         daily, summary = audit_factor(panel, factor, args.min_n)
@@ -58,12 +60,15 @@ def main() -> None:
         comparisons.append(comp.assign(factor=factor))
         details.append(daily)
         print(f'{factor}: audited={len(comp)}, failed={int((~comp["pass"]).sum())}', flush=True)
+
     summary = pd.concat(summaries, ignore_index=True)
     comparison = pd.concat(comparisons, ignore_index=True)
     detail = pd.concat(details, ignore_index=True)
+
     summary.to_csv(args.output/'split_consistency_summary.csv', index=False)
     comparison.to_csv(args.output/'daily_numeric_comparison.csv', index=False)
     detail.to_parquet(args.output/'independent_daily_diagnostics.parquet', index=False)
+
     report = {
         'factors': args.factors,
         'days_compared': len(comparison),
@@ -73,6 +78,7 @@ def main() -> None:
         'alignment': alignment,
         'audit_scope': 'numerical consistency, not PIT or execution certification',
     }
+
     (args.output / 'consistency_audit.json').write_text(
         json.dumps(report, indent=2, default=str), encoding='utf-8'
     )

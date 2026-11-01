@@ -49,12 +49,14 @@ def independent_factors(stock: pd.DataFrame) -> pd.DataFrame:
         .replace([np.inf, -np.inf], np.nan)
         .copy()
     )
+
     bad = (
         x[['open', 'high', 'low', 'close']].le(0).any(axis=1)
         | x.high.lt(x.low)
         | x.high.lt(x[['open', 'close']].max(axis=1))
         | x.low.gt(x[['open', 'close']].min(axis=1))
     )
+
     x.loc[bad, ['open', 'high', 'low', 'close']] = np.nan
     x.loc[x.volume.lt(0), 'volume'] = np.nan
     c, o, h, l, v = x.close, x.open, x.high, x.low, x.volume
@@ -63,6 +65,7 @@ def independent_factors(stock: pd.DataFrame) -> pd.DataFrame:
     out['HIGH_LOW_RANGE'] = (h - l) / c
     out['CLOSE_LOCATION'] = (c - l) / (h - l).replace(0, np.nan)
     r = c / c.shift(1) - 1
+
     for w in WINDOWS:
         out[f'MOM_{w}'] = c / c.shift(w) - 1
         out[f'MA_RATIO_{w}'] = c / c.rolling(w, min_periods=w).mean() - 1
@@ -70,6 +73,7 @@ def independent_factors(stock: pd.DataFrame) -> pd.DataFrame:
         out[f'VOLUME_RATIO_{w}'] = v / v.rolling(w, min_periods=w).mean().replace(0, np.nan)
         out[f'HIGH_POSITION_{w}'] = c / h.rolling(w, min_periods=w).max() - 1
         out[f'LOW_POSITION_{w}'] = c / l.rolling(w, min_periods=w).min() - 1
+
     return out.replace([np.inf, -np.inf], np.nan)[list(FACTORS)]
 
 
@@ -89,6 +93,7 @@ def recompute_panel(
     """
     parts = []
     instruments = target_keys.get_level_values('instrument').unique()
+
     for asset in instruments:
         if asset not in source.index.get_level_values('instrument'):
             continue
@@ -100,6 +105,7 @@ def recompute_panel(
         calc = calc.reindex(requested)
         calc['instrument'] = asset
         parts.append(calc.reset_index().rename(columns={'index': 'datetime'}).set_index(KEYS))
+
     return (
         pd.concat(parts).reindex(target_keys)
         if parts
@@ -130,6 +136,7 @@ def compare_values(
     if not expected.index.equals(actual.index):
         raise ValueError('Key mismatch: expected and stored indexes differ')
     rows, examples = [], []
+
     for factor in FACTORS:
         a = expected[factor].to_numpy(dtype=float)
         b = actual[factor].to_numpy(dtype=float)
@@ -152,6 +159,7 @@ def compare_values(
                 'max_abs_diff': float(np.nanmax(diff)) if both.any() else None,
             }
         )
+
         for j in np.flatnonzero(failed)[:max(0, max_examples - len(examples))]:
             dt, asset = expected.index[j]
             examples.append(
@@ -165,6 +173,7 @@ def compare_values(
                     'reason': 'missing_mismatch' if missing_mismatch[j] else 'numeric_mismatch',
                 }
             )
+
     return pd.DataFrame(rows), pd.DataFrame(
         examples,
         columns=['datetime', 'instrument', 'factor', 'recomputed', 'stored', 'abs_diff', 'reason'],
@@ -187,14 +196,17 @@ def load_years(
         No automatic fallback to alternative datasets or price adjustment versions.
     """
     frames = []
+
     for year in years:
         path = folder / template.format(year=year)
         if not path.exists():
             raise FileNotFoundError(path)
         frames.append(normalize_panel(pd.read_parquet(path), required))
+
     result = pd.concat(frames).sort_index()
     if result.index.has_duplicates:
         raise ValueError('Duplicate keys across annual files')
+
     return result
 
 
@@ -230,7 +242,9 @@ def run_audit(
         range(2015, 2027),
         ('open', 'high', 'low', 'close', 'volume'),
     )
+
     raw = load_years(raw_dir, 'csi300_factors_{year}.parquet', range(2015, 2027), FACTORS)
+
     if calendar_file:
         calendar = (
             pd.DatetimeIndex(pd.to_datetime(pd.read_csv(calendar_file, header=None).iloc[:, 0]))
@@ -244,6 +258,7 @@ def run_audit(
     else:
         calendar = source.index.get_level_values('datetime').unique().sort_values()
         calendar_status = 'inferred_from_source_dates_incomplete_exchange_calendar_possible'
+
     expected = recompute_panel(source, calendar, raw.index)
     summary, examples = compare_values(expected, raw, atol, rtol)
     missing_source_keys = int((~raw.index.isin(source.index)).sum())
@@ -268,9 +283,12 @@ def run_audit(
             'Enhanced values may differ by design and are not presumed equal to Raw',
         ],
     }
+
     output_dir.mkdir(parents=True)
+
     summary.to_csv(output_dir / 'factor_value_summary.csv', index=False)
     examples.to_csv(output_dir / 'factor_value_discrepancies.csv', index=False)
+
     if enhanced_dir:
         enhanced = load_years(
             enhanced_dir, 'csi300_factors_{year}.parquet', range(2015, 2027), FACTORS
@@ -279,11 +297,15 @@ def run_audit(
         enhanced_summary, enhanced_examples = compare_values(
             raw.loc[common, list(FACTORS)], enhanced.loc[common, list(FACTORS)], atol, rtol
         )
+
         enhanced_summary.to_csv(output_dir / 'raw_enhanced_overlap_summary.csv', index=False)
         enhanced_examples.to_csv(output_dir / 'raw_enhanced_overlap_examples.csv', index=False)
+
         report['raw_enhanced_overlap_rows'] = len(common)
         report['raw_enhanced_difference_count'] = int(enhanced_summary.failed.sum())
+
     (output_dir / 'factor_value_audit.json').write_text(
         json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8'
     )
+
     return report

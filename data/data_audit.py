@@ -27,6 +27,7 @@ def audit_annual_panel(df: pd.DataFrame, year: int) -> dict:
         "unique_stocks": df.index.get_level_values("instrument").nunique(),
         "unique_dates": df.index.get_level_values("datetime").nunique(),
     }
+
     result["duplicate_index"] = int(df.index.duplicated().sum())
 
     for col in ["open", "high", "low", "close", "volume", "factor"]:

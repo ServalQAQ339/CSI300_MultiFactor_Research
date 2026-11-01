@@ -26,6 +26,7 @@ def audit_factor(
     if not required.issubset(panel.columns):
         raise ValueError(f'Missing columns: {required-set(panel.columns)}')
     rows = []
+
     for date, day in panel.groupby('signal_date', sort=True):
         z = day[['instrument', factor, 'research_label_5d']].copy()
         for col in (factor, 'research_label_5d'):
@@ -47,6 +48,7 @@ def audit_factor(
             v = np.sort(s.to_numpy(dtype=float))
             k = int(np.floor(0.05 * len(v)))
             return float(v[k : len(v) - k].mean()) if len(v) > 2 * k else np.nan
+
         rows.append(
             {
                 'signal_date': date,
@@ -67,8 +69,10 @@ def audit_factor(
                 'q5_min_return': high.min(),
             }
         )
+
     daily = pd.DataFrame(rows)
     summary = []
+
     for split, (start, end) in SEGMENTS.items():
         d = daily.loc[daily.signal_date.between(start, end)] if not daily.empty else daily
         if d.empty: continue
@@ -88,6 +92,7 @@ def audit_factor(
                 **{f'spread_{k}': v for k, v in hac_mean(s, 4).items()},
             }
         )
+
     return daily, pd.DataFrame(summary)
 
 
@@ -127,4 +132,5 @@ def compare_saved(
         & m.n_paired.eq(m.saved_ic_n)
         & m.n_paired.eq(m.saved_quantile_n)
     )
+
     return m

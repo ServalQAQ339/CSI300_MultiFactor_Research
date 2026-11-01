@@ -52,6 +52,7 @@ def main() -> None:
         raise ValueError('Unexpected correlation matrix factors')
     groups = train_redundancy_groups(corr.loc[FACTOR_NAMES, FACTOR_NAMES], args.corr_threshold)
     selected = []
+
     for factor in rank.factor:
         if all(
             pd.isna(corr.loc[factor, other]) or abs(corr.loc[factor, other]) < args.corr_threshold
@@ -59,16 +60,21 @@ def main() -> None:
         ):
             selected.append(factor)
         if len(selected) >= args.max_candidates: break
+
     if not selected: raise ValueError('No selected factors')
     args.output.mkdir(parents=True, exist_ok=True)
+
     groups.to_csv(args.output / 'train_redundancy_groups.csv', index=False)
     rank.to_csv(args.output / 'train_univariate_screen.csv', index=False)
     pd.DataFrame({'selection_order': range(1, len(selected) + 1), 'factor': selected}).to_csv(
         args.output / 'train_candidate_shortlist.csv', index=False
     )
+
     rows = []
+
     for i, factor in enumerate(selected):
         controls = selected[:i]
+
         for split, data in [('train',train),('validation',validation)]:
             daily = conditional_rank_ic(data, factor, controls, args.min_n)
             stats = hac_mean(daily.conditional_rank_ic, 4)
@@ -85,6 +91,7 @@ def main() -> None:
                     **stats,
                 }
             )
+
     pd.DataFrame(rows).to_csv(args.output / 'conditional_rank_ic_diagnostics.csv', index=False)
     print(
         f'Completed v1.5: {len(selected)} train-selected candidates; test not accessed for screening; output={args.output}'

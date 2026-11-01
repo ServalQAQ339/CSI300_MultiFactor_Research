@@ -33,6 +33,7 @@ def classify_fields(names):
 def inspect_file(path):
     """Description: Inspect supported tabular files without modifying them. Parameters: path (pathlib.Path) file location. Returns: dict with inspection status, columns and candidate matches. Notes: Parquet schema inspection uses pyarrow; large CSV files read header only."""
     result = {'path': str(path), 'status': 'not_inspected', 'columns': [], 'candidates': {}}
+
     try:
         if path.suffix.lower() == '.parquet':
             import pyarrow.parquet as pq
@@ -50,9 +51,11 @@ def inspect_file(path):
             result['status'] = 'filename_only'; return result
         else:
             return result
+
         result.update(status='schema_read', columns=columns, candidates=classify_fields(columns))
     except Exception as exc:
         result.update(status='inspection_error', error=f'{type(exc).__name__}: {exc}')
+
     return result
 
 
@@ -69,6 +72,7 @@ def audit(root, output, max_files=10000):
         for p in paths
         if any(token in p.name.lower() for values in KEYWORDS.values() for token in values)
     ]
+
     results = [inspect_file(p) for p in selected[:max_files]]
     report = {
         'root': str(root),
@@ -80,8 +84,10 @@ def audit(root, output, max_files=10000):
         'pit_certified': False,
         'reason': 'Historical dates, disclosure timing, classification version, and market-cap price/share consistency require separate row-level verification.',
     }
+
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+
     return report
 
 

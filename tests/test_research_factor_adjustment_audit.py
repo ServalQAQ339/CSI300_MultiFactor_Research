@@ -23,6 +23,7 @@ class ResearchFactorAuditTests(unittest.TestCase):
                 'close': [1.0, 1.0],
             }
         )
+
         c = compute_changes(x, ['2020-01-02', '2020-01-03', '2020-01-06'])
         self.assertFalse(bool(c.iloc[1]['valid_pair']))
 
@@ -37,6 +38,7 @@ class ResearchFactorAuditTests(unittest.TestCase):
                 'close': [1.0, 1.0],
             }
         )
+
         c = compute_changes(x, ['2020-01-02', '2020-01-03'])
         m = pd.DataFrame(
             {
@@ -45,6 +47,7 @@ class ResearchFactorAuditTests(unittest.TestCase):
                 'end': pd.to_datetime(['2020-01-03']),
             }
         )
+
         z = apply_membership(c, m)
         self.assertEqual(len(z), 1)
         self.assertAlmostEqual(z.iloc[0]['factor_change'], 0.1)
@@ -83,6 +86,7 @@ class ResearchFactorAuditTests(unittest.TestCase):
                 'factor_change': [0.03],
             }
         )
+
         labels = pd.DataFrame(
             {
                 'instrument': ['A'],
@@ -93,6 +97,7 @@ class ResearchFactorAuditTests(unittest.TestCase):
                 'label_status_5d': ['ok'],
             }
         )
+
         out = label_overlap(events, labels)
         self.assertEqual(int(out.iloc[0]['significant_factor_events']), 1)
         self.assertTrue(bool(out.iloc[0]['extreme_return_20pct']))

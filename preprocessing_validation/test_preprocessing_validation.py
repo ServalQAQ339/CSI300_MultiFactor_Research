@@ -24,13 +24,16 @@ def test_preprocessing_validation() -> None:
         {"MOM_20": rng.normal(size=len(index)), "VOLATILITY_20": rng.normal(size=len(index))},
         index=index,
     )
+
     panel.loc[(dates[0], instruments[0]), "MOM_20"] = np.nan
     panel.loc[(dates[1], instruments[1]), "MOM_20"] = np.inf
+
     for method in ("raw", "rank_uniform", "rank_gaussian", "robust"):
         records = validate_one_year(panel, method)
         assert all(record["passed"] for record in records), records
         transformed = preprocess_factor_panel(panel, PreprocessConfig(method=method))
         assert np.isnan(transformed.loc[(dates[0], instruments[0]), "MOM_20"])
+
     print("Synthetic preprocessing validation tests passed.")
 
 

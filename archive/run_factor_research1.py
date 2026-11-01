@@ -38,15 +38,19 @@ def main() -> None:
     out = Path(args.output); out.mkdir(parents=True, exist_ok=True)
     ic = daily_ic(merged, factor_cols, args.label_col, args.date_col, args.min_n)
     ic.to_csv(out / 'daily_ic.csv', index=False)
+
     rows = []
+
     for factor in factor_cols:
         d = ic.loc[ic.factor == factor]
+
         for segment, start, end in [
             ('train', '2015-04-01', '2020-12-31'),
             ('validation', '2021-01-01', '2023-12-31'),
             ('test', '2024-01-01', '2026-09-30'),
         ]:
             part = d.loc[d[args.date_col].between(start, end)]
+
             for metric in ['ic', 'rank_ic']:
                 rows.append(
                     {
@@ -56,9 +60,11 @@ def main() -> None:
                         **hac_mean(part[metric], 4),
                     }
                 )
+
         quantile_returns(
             merged, factor, args.label_col, args.date_col, args.asset_col, 5, args.min_n
         ).to_csv(out / f'quantiles_{factor}.csv', index=False)
+
     pd.DataFrame(rows).to_csv(out / 'ic_summary.csv', index=False)
     pd.Series(
         {**audit, 'factors_detected': len(factor_cols), 'aligned_research_rows': len(merged)}

@@ -34,6 +34,7 @@ def normalize_shares(raw: pd.DataFrame, unit_multiplier: float) -> pd.DataFrame:
             }
         )
     )
+
     d['instrument'] = d['instrument'].astype('string').str.zfill(6)
     for c in ['announcement_date','effective_date']: d[c] = pd.to_datetime(d[c], errors='coerce')
     for c in ['total_shares', 'float_shares']:
@@ -46,6 +47,7 @@ def normalize_shares(raw: pd.DataFrame, unit_multiplier: float) -> pd.DataFrame:
     d.loc[d['total_shares'] <= 0, 'total_shares'] = np.nan
     d.loc[d['float_shares'] < 0, 'float_shares'] = np.nan
     d['pit_status'] = 'CONSERVATIVE_DATE_PROXY_UNVERIFIED'
+
     return d.sort_values(['instrument','available_date','effective_date']).reset_index(drop=True)
 
 
@@ -68,16 +70,20 @@ def build_share_panel(events: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFra
         .str.replace(r'^(SH|SZ|BJ)', '', regex=True, case=False)
         .str.zfill(6)
     )
+
     s['datetime'] = pd.to_datetime(s['datetime'])
     e = (
         events.dropna(subset=['available_date'])
         .sort_values(['instrument', 'available_date', 'effective_date'])
         .drop_duplicates(['instrument', 'available_date'], keep='last')
     )
+
     parts = []
+
     for code, group in s.groupby('instrument',sort=False):
         g = group.sort_values('datetime')
         h = e[e['instrument'] == code].drop(columns='instrument').sort_values('available_date')
+
         if h.empty:
             for c in [
                 'total_shares',
@@ -88,6 +94,7 @@ def build_share_panel(events: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFra
                 'pit_status',
             ]:
                 g[c] = pd.NaT if c.endswith('date') else np.nan
+
             parts.append(g)
         else:
             parts.append(
@@ -95,6 +102,7 @@ def build_share_panel(events: pd.DataFrame, signals: pd.DataFrame) -> pd.DataFra
                     g, h, left_on='datetime', right_on='available_date', direction='backward'
                 )
             )
+
     return pd.concat(parts,ignore_index=True) if parts else s
 
 
@@ -118,6 +126,7 @@ def build_market_cap_panel(shares: pd.DataFrame, prices: pd.DataFrame) -> pd.Dat
     d['total_market_cap'] = d['raw_close'] * d['total_shares']
     d['float_market_cap'] = d['raw_close'] * d['float_shares']
     d['log_market_cap'] = np.log(d['total_market_cap'].where(d['total_market_cap']>0))
+
     return d
 
 

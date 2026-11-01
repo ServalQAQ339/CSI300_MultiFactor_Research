@@ -32,6 +32,7 @@ def construct_candidate_exposures(
         raise ValueError(
             'Candidate Qlib close/factor reconstruction requires --allow-unverified-price'
         )
+
     if not np.isfinite(unit_multiplier) or unit_multiplier <= 0:
         raise ValueError('Invalid share unit multiplier')
     if universe.duplicated(['datetime', 'instrument']).any():
@@ -40,6 +41,7 @@ def construct_candidate_exposures(
     shares = build_share_panel(events, universe[['datetime', 'instrument']])
     shares['instrument'] = shares['instrument'].astype(str).str.zfill(6)
     price_parts=[]
+
     for year in sorted(universe['datetime'].dt.year.unique()):
         path=Path(root)/'data'/'processed'/f'csi300_daily_{year}.parquet'
         if not path.exists(): raise FileNotFoundError(path)
@@ -54,7 +56,9 @@ def construct_candidate_exposures(
             ~np.isfinite(d['raw_close_candidate']) | (d['raw_close_candidate'] <= 0),
             'raw_close_candidate',
         ] = np.nan
+
         price_parts.append(d[['datetime', 'instrument', 'raw_close_candidate']])
+
     prices=pd.concat(price_parts,ignore_index=True)
     if prices.duplicated(['datetime','instrument']).any(): raise ValueError('Duplicate price keys')
     u = universe[['datetime', 'instrument', 'symbol']].copy()
@@ -68,6 +72,7 @@ def construct_candidate_exposures(
         validate='one_to_one',
         suffixes=('', '_shares'),
     )
+
     u['total_market_cap_candidate'] = u['raw_close_candidate'] * u['total_shares']
     u['float_market_cap_candidate'] = u['raw_close_candidate'] * u['float_shares']
     u['log_market_cap_candidate'] = np.log(
@@ -77,6 +82,7 @@ def construct_candidate_exposures(
     u['share_unit_status'] = 'USER_ASSUMPTION_UNVERIFIED'
     u['membership_status'] = 'OBSERVED_PROCESSED_ROWS_NOT_INDEPENDENTLY_PIT_CERTIFIED'
     u['strict_pit_certified'] = False
+
     return (
         u.drop(columns=['instrument_shares'], errors='ignore')
         .sort_values(['datetime', 'instrument'])
@@ -110,6 +116,7 @@ def main() -> None:
     out = Path(a.output)
     out.mkdir(parents=True, exist_ok=True)
     d.to_parquet(out / 'market_cap_candidate.parquet', index=False)
+
     summary = {
         'rows': len(d),
         'matched_shares': int(d['total_shares'].notna().sum()),
@@ -119,6 +126,7 @@ def main() -> None:
         'strict_pit_certified': False,
         'price_certified': False,
     }
+
     (out / 'market_cap_candidate_summary.json').write_text(
         json.dumps(summary, indent=2), encoding='utf-8'
     )

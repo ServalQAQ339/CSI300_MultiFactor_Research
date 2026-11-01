@@ -19,6 +19,7 @@ def load_inputs(root):
     if [p.name for p in paths] != expected:
         raise ValueError('Annual factor files do not match 2015-2026 manifest')
     frames = []
+
     for path in paths:
         frame = pd.read_parquet(path)
         if list(frame.columns) != FACTOR_NAMES or list(frame.index.names) != [
@@ -27,6 +28,7 @@ def load_inputs(root):
         ]:
             raise ValueError(f'Unexpected factor schema: {path}')
         frames.append(frame.reset_index().rename(columns={'datetime': 'signal_date'}))
+
     factors = pd.concat(frames, ignore_index=True)
     labels = pd.read_parquet(root / 'data/labels/forward_labels.parquet')
     required = {
@@ -38,8 +40,10 @@ def load_inputs(root):
         'entry_date_5d',
         'exit_date_5d',
     }
+
     if not required.issubset(labels.columns):
         raise ValueError(f'Missing label columns: {required-set(labels.columns)}')
+
     for name, frame in [('factors', factors), ('labels', labels)]:
         frame['signal_date'] = pd.to_datetime(frame['signal_date'], errors='raise').dt.normalize()
         frame['instrument'] = frame['instrument'].astype(str).str.strip()
@@ -48,6 +52,7 @@ def load_inputs(root):
             or frame.duplicated(['signal_date', 'instrument']).any()
         ):
             raise ValueError(f'Invalid or duplicate keys: {name}')
+
     return factors, labels
 
 
@@ -70,6 +75,7 @@ def prepare_panel(factors, labels):
         validate='one_to_one',
         indicator=True,
     )
+
     panel = panel.loc[panel.signal_date.between(START, END)].copy()
     panel['entry_date_5d'] = pd.to_datetime(panel['entry_date_5d'], errors='coerce')
     panel['exit_date_5d'] = pd.to_datetime(panel['exit_date_5d'], errors='coerce')
@@ -80,11 +86,14 @@ def prepare_panel(factors, labels):
         & panel.entry_date_5d.gt(panel.signal_date)
         & panel.exit_date_5d.gt(panel.entry_date_5d)
     )
+
     panel['research_label_5d'] = value.where(valid)
     panel['factor_matched'] = panel['_merge'].eq('both')
+
     for split, (start, end) in SEGMENTS.items():
         if not panel.loc[panel.split.eq(split), 'signal_date'].between(start, end).all():
             raise ValueError(f'Invalid split boundary: {split}')
+
     if not panel.split.isin(SEGMENTS).all(): raise ValueError('Unknown split values')
     audit = {
         'research_rows': len(panel),
@@ -96,10 +105,14 @@ def prepare_panel(factors, labels):
         'independent_membership_pit_verified': False,
         'execution_tradability_verified': False,
     }
+
     panel['purged_for_split'] = False
+
     for split, (_, end) in SEGMENTS.items():
         panel.loc[panel.split.eq(split), 'purged_for_split'] = (
             panel.loc[panel.split.eq(split), 'exit_date_5d'].gt(pd.Timestamp(end)).fillna(False)
         )
+
     audit['valid_labels_crossing_split_end'] = int((valid & panel.purged_for_split).sum())
+
     return panel.drop(columns='_merge'), audit

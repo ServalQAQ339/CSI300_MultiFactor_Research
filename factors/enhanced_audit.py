@@ -43,22 +43,29 @@ def compare_factor_frames(
             or frame.index.has_duplicates
         ):
             raise ValueError(f"Invalid or duplicate {name} index")
+
     b, e, p = (
         frame.reorder_levels(["datetime", "instrument"]).sort_index()
         for frame in (baseline, enhanced, price)
     )
+
     same_columns = set(b.columns) == set(e.columns)
+
     if not same_columns:
         raise ValueError(
             f"Factor column mismatch: baseline_only={set(b.columns)-set(e.columns)}, enhanced_only={set(e.columns)-set(b.columns)}"
         )
+
     keys_match = b.index.equals(e.index) and b.index.equals(p.index)
+
     if not keys_match:
         raise ValueError(
             f"Index mismatch in {year}: baseline={len(b)}, enhanced={len(e)}, price={len(p)}"
         )
+
     factors = sorted(b.columns)
     metrics = []
+
     for factor in factors:
         x = pd.to_numeric(b[factor], errors="coerce").to_numpy(dtype=float)
         y = pd.to_numeric(e[factor], errors="coerce").to_numpy(dtype=float)
@@ -85,6 +92,7 @@ def compare_factor_frames(
                 "enhanced_inf": int(np.isinf(y).sum()),
             }
         )
+
     details = pd.DataFrame(metrics)
     summary = {
         "year": year,
@@ -98,6 +106,7 @@ def compare_factor_frames(
         "changed_existing_cells": int(details["changed_existing"].sum()),
         "enhanced_inf_cells": int(details["enhanced_inf"].sum()),
     }
+
     return details, summary
 
 
@@ -139,6 +148,7 @@ def audit_prefix_consistency(
     """
     from data.history_loader import load_extended_history
     from factors.factor_engine import build_factor_panel
+
     rng = np.random.default_rng(seed + year)
     target = target.reorder_levels(["datetime", "instrument"]).sort_index()
     enhanced = enhanced.reorder_levels(["datetime", "instrument"]).sort_index()
@@ -147,6 +157,7 @@ def audit_prefix_consistency(
         rng.choice(dates.to_numpy(), size=min(sample_dates, len(dates)), replace=False)
     )
     rows = []
+
     for date_value in chosen_dates:
         date = pd.Timestamp(date_value)
         day = target.xs(date, level="datetime", drop_level=False)
@@ -162,6 +173,7 @@ def audit_prefix_consistency(
             history, calendar, str(date.date()), str(date.date())
         ).reindex(subset.index)
         expected = enhanced.reindex(subset.index)
+
         for key in subset.index:
             a = recomputed.loc[key].to_numpy(dtype=float)
             b = expected.loc[key].to_numpy(dtype=float)
@@ -180,6 +192,7 @@ def audit_prefix_consistency(
                     "max_abs_diff": float(differences.max()) if differences.size else np.nan,
                 }
             )
+
     return pd.DataFrame(rows)
 
 
@@ -221,6 +234,7 @@ def run_enhanced_audit(
     files = sorted(enhanced_dir.glob("csi300_factors_*.parquet"))
     if not files:
         raise FileNotFoundError(f"No enhanced factor files in {enhanced_dir}")
+
     for file in files:
         year = int(file.stem.split("_")[-1])
         baseline_file = baseline_dir / file.name
@@ -232,28 +246,35 @@ def run_enhanced_audit(
             pd.read_parquet(file),
             pd.read_parquet(price_file),
         )
+
         comparison, summary = compare_factor_frames(baseline, enhanced, price, year)
         comparisons.append(comparison)
         summaries.append(summary)
+
         if prefix_check:
             prefixes.append(
                 audit_prefix_consistency(
                     price, calendar, enhanced, year, sample_dates, sample_instruments
                 )
             )
+
         print(
             f"Audited {year}: recovered={summary['recovered_cells']:,}, lost={summary['lost_cells']:,}, changed={summary['changed_existing_cells']:,}",
             flush=True,
         )
+
     results = {
         "year_comparison": pd.DataFrame(summaries),
         "factor_comparison": pd.concat(comparisons, ignore_index=True),
     }
+
     if prefix_check:
         results["prefix_consistency"] = pd.concat(prefixes, ignore_index=True)
     report_dir.mkdir(parents=True, exist_ok=True)
+
     for name, frame in results.items():
         destination = report_dir / f"{name}.csv"
         frame.to_csv(destination, index=False)
         print(f"Saved {destination}", flush=True)
+
     return results

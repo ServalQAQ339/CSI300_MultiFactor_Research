@@ -15,6 +15,7 @@ def sample_panel() -> pd.DataFrame:
         Extreme high-quantile return makes average spread positive despite negative rank IC.
     """
     rows = []
+
     for date in ['2022-01-04', '2022-01-05']:
         for i in range(10):
             rows.append(
@@ -25,6 +26,7 @@ def sample_panel() -> pd.DataFrame:
                     'research_label_5d': float(100 if i == 9 else 10 - i),
                 }
             )
+
     return pd.DataFrame(rows)
 
 

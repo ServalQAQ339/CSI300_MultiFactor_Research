@@ -30,6 +30,7 @@ def run_tests() -> None:
         },
         index=index,
     )
+
     for method in ("raw", "rank_uniform", "rank_gaussian", "robust"):
         config = PreprocessConfig(method=method, min_valid=3)
         result = preprocess_factor_panel(panel, config)
@@ -43,6 +44,7 @@ def run_tests() -> None:
             result.loc[(dates[0], "A"), "MOM_5"]
             == preprocess_factor_panel(changed, config).loc[(dates[0], "A"), "MOM_5"]
         )
+
     ranks = preprocess_factor_panel(panel, PreprocessConfig(method="rank_uniform", min_valid=3))
     assert ranks.loc[(dates[0], "B"), "MOM_5"] == ranks.loc[(dates[0], "C"), "MOM_5"]
     robust = preprocess_factor_panel(panel, PreprocessConfig(method="robust", min_valid=3))

@@ -29,11 +29,15 @@ def run_complete_data_pipeline(overwrite: bool = False) -> None:
     initialize_qlib()
 
     print("\n[1/2] BUILDING DAILY STOCK PANEL", flush=True)
+
     summary = build_daily_dataset(overwrite=overwrite)
+
     print(summary.to_string(index=False))
 
     print("\n[2/2] RUNNING DATA QUALITY AUDIT", flush=True)
+
     audit = run_data_audit()
+
     print(audit.to_string(index=False))
 
     print("\nDATA PIPELINE COMPLETED", flush=True)
@@ -65,6 +69,7 @@ def run_missing_diagnostics() -> pd.DataFrame:
 
     report = pd.concat(results, ignore_index=True)
     AUDIT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     report.to_csv(AUDIT_OUTPUT_DIR / "missing_patterns.csv", index=False)
 
     print("\nTOP 20 STOCK-YEAR MISSING PATTERNS")

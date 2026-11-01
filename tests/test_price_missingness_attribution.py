@@ -26,6 +26,7 @@ class TestPriceMissingnessAttribution(unittest.TestCase):
                 'issue': ['invalid_open', 'invalid_close'],
             }
         )
+
         result = prepare_audit(audit)
         self.assertEqual(len(result), 1)
         self.assertIn('invalid_open', result.iloc[0]['audit_issues'])
@@ -41,6 +42,7 @@ class TestPriceMissingnessAttribution(unittest.TestCase):
                 }
             )
         )
+
         quotes = pd.DataFrame(
             {
                 'instrument': ['A'],
@@ -51,6 +53,7 @@ class TestPriceMissingnessAttribution(unittest.TestCase):
                 '$factor': [1.0],
             }
         )
+
         result = attribute_prices(keys, quotes).set_index('instrument')
         self.assertEqual(result.loc['A', 'open_state'], 'missing_value')
         self.assertEqual(result.loc['B', 'open_state'], 'missing_key')
@@ -63,6 +66,7 @@ class TestPriceMissingnessAttribution(unittest.TestCase):
                 {'instrument': ['A'], 'datetime': ['2020-01-02'], 'issue': ['invalid_open']}
             )
         )
+
         quotes = pd.DataFrame(
             {
                 'instrument': ['A', 'A'],
@@ -73,6 +77,7 @@ class TestPriceMissingnessAttribution(unittest.TestCase):
                 '$factor': [1, 1],
             }
         )
+
         with self.assertRaises(ValueError):
             attribute_prices(keys, quotes)
 

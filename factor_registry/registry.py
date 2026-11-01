@@ -17,6 +17,7 @@ def build_registry(source_file: str = 'factors/factor_engine.py') -> dict:
         Formula fields are null until independently verified from source code.
     """
     factors = []
+
     for name in FACTOR_NAMES:
         factors.append(
             {
@@ -33,6 +34,7 @@ def build_registry(source_file: str = 'factors/factor_engine.py') -> dict:
                 'availability_rule': None,
             }
         )
+
     return {
         'schema_version': 1,
         'created_at_utc': datetime.now(timezone.utc).isoformat(),

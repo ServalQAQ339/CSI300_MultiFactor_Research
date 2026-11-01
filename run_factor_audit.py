@@ -18,6 +18,7 @@ def run_complete_factor_audit():
         The data import path below must match the actual data module layout.
     """
     from data.data_loader import initialize_qlib, get_trading_calendar
+
     initialize_qlib()
     calendar = get_trading_calendar(START_DATE, END_DATE)
     reports = run_factor_audit(
@@ -28,6 +29,7 @@ def run_complete_factor_audit():
         int(START_DATE[:4]),
         int(END_DATE[:4]),
     )
+
     print("\nINTEGRITY\n", reports["integrity"].to_string(index=False))
     print("\nYEARLY COVERAGE\n", reports["year_summary"].to_string(index=False))
     print(
@@ -36,6 +38,7 @@ def run_complete_factor_audit():
         .nsmallest(15, "coverage")[["year", "factor", "coverage", "nan_count", "inf_count"]]
         .to_string(index=False),
     )
+
     return reports
 
 

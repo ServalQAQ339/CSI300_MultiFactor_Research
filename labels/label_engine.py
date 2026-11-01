@@ -26,12 +26,14 @@ def audit_prices(prices: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     for field in ['open', 'close', 'factor']:
         p[field] = pd.to_numeric(p[field], errors='coerce').replace([np.inf, -np.inf], np.nan)
     issues = []
+
     for field in ['open', 'close', 'factor']:
         bad = p[field].isna() | (p[field] <= 0)
         if bad.any():
             q = p.loc[bad, ['instrument', 'datetime']].copy()
             q['issue'] = f'invalid_{field}'
             issues.append(q)
+
     p['raw_open_estimate'] = (p['open'] / p['factor']).where(p['factor'] > 0)
     p['raw_close_estimate'] = (p['close'] / p['factor']).where(p['factor'] > 0)
     p = p.sort_values(['instrument', 'datetime']).reset_index(drop=True)
@@ -43,6 +45,7 @@ def audit_prices(prices: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         if issues
         else pd.DataFrame(columns=['instrument', 'datetime', 'issue'])
     )
+
     return p, issue_df
 
 
@@ -88,6 +91,7 @@ def build_labels(
         .rename(columns={'datetime': 'signal_date'})
         .copy()
     )
+
     result['split'] = np.select(
         [
             result['signal_date'].le(config.train_end),
@@ -97,11 +101,13 @@ def build_labels(
         ['train', 'validation', 'test'],
         default='outside',
     )
+
     end_map = {
         'train': pd.Timestamp(config.train_end),
         'validation': pd.Timestamp(config.validation_end),
         'test': pd.Timestamp(config.test_end),
     }
+
     for h in config.horizons:
         if not isinstance(h, int) or h < 1:
             raise ValueError('Horizons must be positive integers')
@@ -109,6 +115,7 @@ def build_labels(
             result['calendar_pos'].to_numpy() + 1,
             result['calendar_pos'].to_numpy() + h + 1,
         )
+
         entry_dates = pd.Series(pd.NaT, index=result.index, dtype='datetime64[ns]')
         exit_dates = pd.Series(pd.NaT, index=result.index, dtype='datetime64[ns]')
         valid_entry, valid_exit = entry_pos < len(cal), exit_pos < len(cal)
@@ -123,10 +130,12 @@ def build_labels(
             price_map['valid_open'].reindex(entry_keys).eq(True).to_numpy(dtype=bool),
             index=result.index,
         )
+
         exit_valid = pd.Series(
             price_map['valid_open'].reindex(exit_keys).eq(True).to_numpy(dtype=bool),
             index=result.index,
         )
+
         boundary = pd.Series([end_map[s] for s in result['split']], index=result.index)
         reason = np.select(
             [~valid_exit, exit_dates.gt(boundary), ~valid_entry, ~entry_valid, ~exit_valid],
@@ -139,11 +148,13 @@ def build_labels(
             ],
             default='ok',
         )
+
         label = (exit_open / entry_open - 1).where(reason == 'ok')
         result[f'label_{h}d'] = label
         result[f'label_status_{h}d'] = reason
         result[f'entry_open_adjusted_{h}d'] = entry_open
         result[f'exit_open_adjusted_{h}d'] = exit_open
+
     return (
         result.drop(columns='calendar_pos')
         .sort_values(['signal_date', 'instrument'])

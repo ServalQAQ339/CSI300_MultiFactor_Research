@@ -50,12 +50,14 @@ def analyze_factor_panel(panel, calendar):
         .apply(lambda s: ~np.isfinite(pd.to_numeric(s, errors='coerce')))
         .any(axis=1)
     )
+
     return d
 
 
 def summarize_changes(audit, thresholds=THRESHOLDS):
     """Description: Summarize strict consecutive-day factor movements by threshold. Parameters: audit (DataFrame): Output of analyze_factor_panel. thresholds (sequence[float]): Absolute relative-change cutoffs. Returns: DataFrame: Threshold, eligible comparisons, and exceedance counts. Notes: Counts are observations, not verified corporate actions."""
     values = audit.loc[audit['consecutive'], 'abs_change'].dropna()
+
     return pd.DataFrame(
         [
             {
@@ -74,8 +76,10 @@ def fetch_qlib(stocks, qlib_dir, start, end, batch_size=80):
     """Description: Retrieve full historical Qlib factor and daily trading fields in bounded stock batches. Parameters: stocks (list[str]): Instruments. qlib_dir (Path): Qlib binary directory. start (str): First date. end (str): Last date. batch_size (int): Stocks per request. Returns: DataFrame: Normalized stock-date price panel. Notes: Qlib may return missing rows and price values; no implicit filling is performed."""
     import qlib
     from qlib.data import D
+
     qlib.init(provider_uri=str(qlib_dir), region='cn')
     chunks = []
+
     for k in range(0, len(stocks), batch_size):
         batch = D.features(
             stocks[k : k + batch_size],
@@ -83,6 +87,7 @@ def fetch_qlib(stocks, qlib_dir, start, end, batch_size=80):
             start_time=start,
             end_time=end,
         ).reset_index()
+
         chunks.append(
             batch.rename(
                 columns={
@@ -94,6 +99,7 @@ def fetch_qlib(stocks, qlib_dir, start, end, batch_size=80):
             )
         )
         print(f'Fetched {min(k + batch_size, len(stocks))}/{len(stocks)} instruments', flush=True)
+
     return (
         pd.concat(chunks, ignore_index=True)
         if chunks
@@ -105,6 +111,7 @@ def run(qlib_dir, root, start, end):
     """Description: Execute read-only adjustment-factor diagnostics and export audit reports. Parameters: qlib_dir (Path): Qlib binary root. root (Path): Research data root. start (str): Audit start date. end (str): Audit end date. Returns: dict: Summary statistics and output paths. Notes: Does not overwrite labels, factors, or existing audit reports."""
     import qlib
     from qlib.data import D
+
     stocks = load_membership_stocks(qlib_dir / 'instruments' / 'csi300.txt')
     panel = fetch_qlib(stocks, qlib_dir, start, end)
     calendar = pd.DatetimeIndex(D.calendar(start_time=start, end_time=end, freq='day'))
@@ -112,6 +119,7 @@ def run(qlib_dir, root, start, end):
     threshold = summarize_changes(audit)
     output = root / 'reports' / 'factor_adjustment_audit'
     output.mkdir(parents=True, exist_ok=True)
+
     threshold.to_csv(output / 'factor_change_thresholds.csv', index=False)
     audit.nlargest(200, 'abs_change')[
         [
@@ -134,6 +142,7 @@ def run(qlib_dir, root, start, end):
         (audit['calendar_gap'].gt(1)) | (~audit['factor_valid']),
         ['instrument', 'datetime', 'factor', 'calendar_gap', 'factor_valid', 'price_missing'],
     ].to_csv(output / 'factor_gap_or_invalid.csv', index=False)
+
     summary = {
         'stocks': len(stocks),
         'panel_rows': len(audit),
@@ -148,11 +157,13 @@ def run(qlib_dir, root, start, end):
             'Membership publication-time PIT remains unverified',
         ],
     }
+
     (output / 'factor_audit_summary.json').write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8'
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     print(f'Reports: {output}')
+
     return summary
 
 

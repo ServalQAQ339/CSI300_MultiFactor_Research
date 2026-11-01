@@ -52,6 +52,7 @@ def _transform_cross_section(values: pd.Series, config: PreprocessConfig) -> pd.
     valid = clean.dropna()
     if len(valid) < config.min_valid:
         return result
+
     if config.method == "raw":
         result.loc[valid.index] = valid
     elif config.method in {"rank_uniform", "rank_gaussian"}:
@@ -68,6 +69,7 @@ def _transform_cross_section(values: pd.Series, config: PreprocessConfig) -> pd.
         iqr = q75 - q25
         if np.isfinite(iqr) and iqr > config.iqr_epsilon:
             result.loc[valid.index] = (valid - median) / iqr
+
     return result
 
 
@@ -95,6 +97,7 @@ def preprocess_factor_panel(
         "instrument",
     ]:
         raise ValueError("Expected MultiIndex with names ['datetime', 'instrument']")
+
     if panel.index.has_duplicates:
         raise ValueError("Duplicate (datetime, instrument) keys are not allowed")
     columns = (
@@ -102,17 +105,21 @@ def preprocess_factor_panel(
         if factor_columns is not None
         else panel.select_dtypes(include="number").columns.tolist()
     )
+
     if (
         not columns
         or len(set(columns)) != len(columns)
         or any(column not in panel.columns for column in columns)
     ):
         raise ValueError("factor_columns must be nonempty, unique, and present in panel")
+
     result = pd.DataFrame(index=panel.index, columns=columns, dtype=float)
+
     for _, date_panel in panel.groupby(level="datetime", sort=False):
         for column in columns:
             transformed = _transform_cross_section(date_panel[column], config)
             result.loc[date_panel.index, column] = transformed.to_numpy()
+
     return result
 
 
@@ -149,6 +156,7 @@ def compare_prefix_invariance(
         int(np.count_nonzero(~np.isclose(a, b, rtol=0, atol=atol, equal_nan=True)))
         - missing_mismatch
     )
+
     return {
         "cutoff": str(pd.Timestamp(cutoff).date()),
         "rows": len(prefix),

@@ -42,6 +42,7 @@ def test_calendar_phase_preserved():
         for f in ['A', 'B']
         if not (f == 'B' and i == 1)
     ]
+
     _, phase = ic_diagnostics(pd.DataFrame(rows), {'test': ('2024-01-01','2024-01-31')}, horizon=5)
     assert phase.query("factor == 'A' and metric == 'ic' and phase == 0").n_days.iloc[0] == 2
     assert phase.query("factor == 'B' and metric == 'ic' and phase == 1").n_days.iloc[0] == 0
@@ -85,6 +86,7 @@ def test_quantile_schema():
             }
         ]
     )
+
     out = quantile_diagnostics(d, 'A', {'test': ('2024-01-01', '2024-12-31')})
     assert bool(out.monotone_decreasing.iloc[0])
     assert out.q5_minus_q1.iloc[0] == pytest.approx(-0.04)

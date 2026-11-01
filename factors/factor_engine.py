@@ -27,6 +27,7 @@ def validate_panel(panel: pd.DataFrame) -> pd.DataFrame:
         "instrument",
     }:
         raise ValueError("Panel index must contain datetime and instrument levels")
+
     if panel.index.has_duplicates:
         raise ValueError("Duplicate (datetime, instrument) index detected")
     missing = set(REQUIRED_COLUMNS).difference(panel.columns)
@@ -43,6 +44,7 @@ def validate_panel(panel: pd.DataFrame) -> pd.DataFrame:
         | df["high"].lt(df[["open", "close"]].max(axis=1))
         | df["low"].gt(df[["open", "close"]].min(axis=1))
     )
+
     df.loc[invalid_price, list(PRICE_COLUMNS)] = np.nan
     df.loc[df["volume"].lt(0), "volume"] = np.nan
 
@@ -130,6 +132,7 @@ def build_factor_panel(
         raise ValueError("Calendar must contain all input trading dates")
 
     outputs = []
+
     for instrument, stock in df.groupby(level="instrument", sort=False):
         stock = stock.droplevel("instrument").reindex(calendar)
         features = calculate_stock_factors(stock, windows)
@@ -139,6 +142,7 @@ def build_factor_panel(
             .reset_index()
             .rename(columns={"index": "datetime"})
         )
+
     if not outputs:
         return pd.DataFrame()
 
@@ -183,12 +187,14 @@ def run_factor_engine(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     summary = []
+
     for year in range(start_year, end_year + 1):
         output_file = output_dir / f"csi300_factors_{year}.parquet"
 
         if output_file.exists() and not overwrite:
             summary.append({"year": year, "status": "cached", "path": str(output_file)})
             continue
+
         target_file = Path(data_dir) / f"csi300_daily_{year}.parquet"
 
         if not target_file.exists():
@@ -206,6 +212,7 @@ def run_factor_engine(
             Path(data_dir) / f"csi300_daily_{source_year}.parquet"
             for source_year in range(warmup_start.year, year + 1)
         ]
+
         missing_files = [str(path) for path in source_files if not path.exists()]
 
         if missing_files:
@@ -221,6 +228,7 @@ def run_factor_engine(
             windows,
         )
         factors.to_parquet(output_file, engine="pyarrow", compression="snappy")
+
         summary.append(
             {
                 "year": year,

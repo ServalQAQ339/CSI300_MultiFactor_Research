@@ -42,6 +42,7 @@ def generate_backfilled_year(
         target_keys.get_level_values("datetime").min(),
         target_keys.get_level_values("datetime").max(),
     )
+
     computed = build_factor_panel(
         history, window_calendar, str(first.date()), str(last.date()), windows
     )
@@ -55,6 +56,7 @@ def generate_backfilled_year(
         "history_rows": len(history),
         "history_start": str(window_calendar[0].date()),
     }
+
     return result, stats
 
 
@@ -86,20 +88,25 @@ def run_backfilled_factor_pipeline(
     data_dir, output_dir = Path(data_dir), Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     rows = []
+
     for year in range(start_year, end_year + 1):
         destination = output_dir / f"csi300_factors_{year}.parquet"
+
         if destination.exists() and not overwrite:
             rows.append({"year": year, "status": "cached", "path": str(destination)})
             continue
+
         target_path = data_dir / f"csi300_daily_{year}.parquet"
         if not target_path.exists():
             raise FileNotFoundError(target_path)
         target = pd.read_parquet(target_path)
         result, stats = generate_backfilled_year(target, calendar)
         result.to_parquet(destination, engine="pyarrow", compression="snappy")
+
         rows.append({"year": year, "status": "generated", **stats, "path": str(destination)})
         print(
             f"Enhanced {year}: {len(result):,} rows, coverage={stats['mean_coverage']:.4f}",
             flush=True,
         )
+
     return pd.DataFrame(rows)

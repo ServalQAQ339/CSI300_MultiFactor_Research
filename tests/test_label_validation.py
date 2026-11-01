@@ -11,6 +11,7 @@ class TestLabelValidation(unittest.TestCase):
         """Description: Build a minimal valid synthetic label row. Parameters: None. Returns: tuple[pd.DataFrame,pd.DatetimeIndex]: row and market calendar. Notes: Entry and exit offsets use H+1."""
         dates = pd.bdate_range('2020-01-02', periods=20)
         row = {'instrument': 'SH600000', 'signal_date': dates[0], 'split': 'train'}
+
         for h in (1, 5, 10):
             row.update(
                 {
@@ -22,6 +23,7 @@ class TestLabelValidation(unittest.TestCase):
                     f'exit_open_adjusted_{h}d': 11.0,
                 }
             )
+
         return pd.DataFrame([row]), dates
 
     def test_valid_row(self):
@@ -65,6 +67,7 @@ class TestLabelValidation(unittest.TestCase):
                 'factor': [1.0, 1.000001, 1.1],
             }
         )
+
         _, thresholds, _ = price_diagnostics(issues, candidates)
         self.assertEqual(int(thresholds.loc[thresholds['threshold'].eq(.01), 'count'].iloc[0]), 1)
 

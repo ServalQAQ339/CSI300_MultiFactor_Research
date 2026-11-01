@@ -28,10 +28,12 @@ class TestMembership(unittest.TestCase):
                 'end': pd.to_datetime(['2020-01-03', '2020-01-06']),
             }
         )
+
         result = expand_membership(
             intervals,
             pd.to_datetime(['2020-01-02', '2020-01-03', '2020-01-06']),
             '2020-01-02',
             '2020-01-06',
         )
+
         self.assertEqual(len(result), 3)

@@ -25,14 +25,17 @@ def classify_price(value, matched):
         return 'missing_key'
     if pd.isna(value):
         return 'missing_value'
+
     try:
         number = float(value)
     except (TypeError, ValueError):
         return 'non_numeric'
+
     if not np.isfinite(number):
         return 'infinite'
     if number == 0:
         return 'zero'
+
     return 'negative' if number < 0 else 'valid'
 
 
@@ -53,6 +56,7 @@ def prepare_audit(audit):
     result = data.groupby(['instrument', 'datetime'], as_index=False)['issue'].agg(
         lambda s: '|'.join(sorted(set(s.astype(str))))
     )
+
     return result.rename(columns={'issue': 'audit_issues'})
 
 
@@ -74,11 +78,14 @@ def attribute_prices(keys, quotes):
         q, on=['instrument', 'datetime'], how='left', validate='one_to_one', indicator=True
     )
     matched = result['_merge'].eq('both').to_numpy()
+
     for field in FIELDS:
         result[field[1:] + '_state'] = [
             classify_price(value, exists) for value, exists in zip(result[field], matched)
         ]
+
     result['year'] = result['datetime'].dt.year
+
     return result
 
 
@@ -91,8 +98,10 @@ def load_qlib_quotes(stocks, start, end, qlib_dir, batch_size=80):
     """
     import qlib
     from qlib.data import D
+
     qlib.init(provider_uri=qlib_dir, region='cn')
     frames = []
+
     for index in range(0, len(stocks), batch_size):
         batch = stocks[index:index + batch_size]
         chunk = D.features(batch, FIELDS, start_time=start, end_time=end).reset_index()
@@ -100,6 +109,7 @@ def load_qlib_quotes(stocks, start, end, qlib_dir, batch_size=80):
         print(
             f'Fetched {min(index + batch_size, len(stocks))}/{len(stocks)} instruments', flush=True
         )
+
     return (
         pd.concat(frames, ignore_index=True)
         if frames
@@ -123,6 +133,7 @@ def run(args):
         args.qlib_dir,
         args.batch_size,
     )
+
     result = attribute_prices(keys, quotes)
     result['all_four_missing_key'] = (
         result[[f[1:] + '_state' for f in FIELDS]].eq('missing_key').all(axis=1)
@@ -130,10 +141,12 @@ def run(args):
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
     result.to_csv(output / 'price_missingness_details.csv', index=False)
+
     by_year = result.groupby('year', as_index=False).agg(
         audit_keys=('instrument', 'size'), unmatched_qlib_keys=('all_four_missing_key', 'sum')
     )
     by_year.to_csv(output / 'price_missingness_by_year.csv', index=False)
+
     by_stock = result.groupby('instrument', as_index=False).agg(
         audit_keys=('datetime', 'size'),
         unmatched_qlib_keys=('all_four_missing_key', 'sum'),
@@ -143,6 +156,7 @@ def run(args):
     by_stock.sort_values('audit_keys', ascending=False).to_csv(
         output / 'price_missingness_by_stock.csv', index=False
     )
+
     states = pd.concat(
         [
             result[['instrument', 'datetime', 'year', f[1:] + '_state']]
@@ -155,6 +169,7 @@ def run(args):
     states.groupby(['field', 'state'], as_index=False).size().rename(
         columns={'size': 'count'}
     ).to_csv(output / 'price_missingness_states.csv', index=False)
+
     summary = {
         'audit_issue_rows': int(len(audit)),
         'unique_audit_keys': int(len(keys)),
@@ -170,11 +185,13 @@ def run(args):
             'Corporate actions and raw price correctness are not independently verified',
         ],
     }
+
     (output / 'price_missingness_summary.json').write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8'
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     print('Reports:', output)
+
     return summary
 
 
@@ -190,11 +207,13 @@ def main():
         '--audit-csv',
         default=r'D:\QuantResearch\CSI300_MultiFactor_Research\reports\label_engineering\price_audit.csv',
     )
+
     parser.add_argument('--qlib-dir', default=r'D:\QuantResearch\qlib_data\cn_data\qlib_bin')
     parser.add_argument(
         '--output-dir',
         default=r'D:\QuantResearch\CSI300_MultiFactor_Research\reports\price_missingness_attribution',
     )
+
     parser.add_argument('--batch-size', type=int, default=80)
     args = parser.parse_args()
     if args.batch_size <= 0:

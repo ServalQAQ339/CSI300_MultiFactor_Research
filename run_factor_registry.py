@@ -25,10 +25,12 @@ def main() -> None:
         '--output',
         default=r'D:\QuantResearch\CSI300_MultiFactor_Research\reports\factor_registry\original27_registry_v1.json',
     )
+
     parser.add_argument(
         '--sample-parquet',
         default=r'D:\QuantResearch\CSI300_MultiFactor_Research\data\factors_preprocessed\raw\csi300_factors_2015.parquet',
     )
+
     parser.add_argument('--overwrite', action='store_true')
     args = parser.parse_args()
     registry = build_registry()
@@ -36,10 +38,12 @@ def main() -> None:
     if not audit['passed']:
         raise RuntimeError(audit)
     path = write_registry(args.output, registry, overwrite=args.overwrite)
+
     if Path(args.sample_parquet).exists():
         audit['parquet_schema'] = validate_parquet_columns(args.sample_parquet, registry)
         if not audit['parquet_schema']['passed']:
             raise RuntimeError(audit)
+
     print(json.dumps({'registry_path': str(path), **audit}, ensure_ascii=False, indent=2))
 
 

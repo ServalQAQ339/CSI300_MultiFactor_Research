@@ -21,18 +21,22 @@ def audit_share_cache(cache: Path, symbols: list[str]) -> tuple[pd.DataFrame,dic
     problems = {}
     missing = []
     counts = {}
+
     for code in symbols:
         paths=sorted(cache.glob(f'cninfo_shares_{code}_*.csv'))
         if not paths: missing.append(code); continue
+
         if len(paths) > 1:
             problems[code] = 'Multiple cache snapshots: select an explicit version'
             continue
+
         try:
             d = pd.read_csv(
                 paths[0],
                 dtype={'证券代码': 'string', '变动原因编码': 'string'},
                 encoding='utf-8-sig',
             )
+
             if not set(required).issubset(d.columns): raise ValueError('Missing required fields')
             if d.empty: raise ValueError('Empty share-event history')
             d['证券代码']=d['证券代码'].str.zfill(6)
@@ -48,9 +52,11 @@ def audit_share_cache(cache: Path, symbols: list[str]) -> tuple[pd.DataFrame,dic
                 'missing_effective': int(d['变动日期'].isna().sum()),
                 'periodic_snapshots': int(d['变动原因'].astype(str).str.contains('定期报告').sum()),
             }
+
             chunks.append(d)
         except Exception as exc:
             problems[code] = f'{type(exc).__name__}: {exc}'
+
     report = {
         'requested_symbols': len(symbols),
         'cached_symbols': len(counts),
@@ -60,6 +66,7 @@ def audit_share_cache(cache: Path, symbols: list[str]) -> tuple[pd.DataFrame,dic
         'share_unit_certified': False,
         'strict_pit_certified': False,
     }
+
     return (
         pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame(columns=required)
     ), report
@@ -85,12 +92,14 @@ def main() -> None:
         for s in Path(a.symbols_file).read_text(encoding='utf-8-sig').splitlines()
         if s.strip()
     ]
+
     out=Path(a.output)
     out.mkdir(parents=True,exist_ok=True)
 
     d, r = audit_share_cache(Path(a.cache), symbols)
     for col in d.select_dtypes(include=['object']).columns:
         d[col] = d[col].astype('string')
+
     d.to_parquet(out/'share_events_raw.parquet', index=False)
 
     (out / 'share_cache_audit.json').write_text(

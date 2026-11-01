@@ -24,6 +24,7 @@ def main() -> None:
         type=Path,
         default=Path(r'D:\QuantResearch\CSI300_MultiFactor_Research\data\factors_preprocessed\raw'),
     )
+
     p.add_argument(
         '--output',
         type=Path,
@@ -31,6 +32,7 @@ def main() -> None:
             r'D:\QuantResearch\CSI300_MultiFactor_Research\reports\factor_verification\original27_value_audit_v1'
         ),
     )
+
     p.add_argument('--calendar-file', type=Path, default=None)
     p.add_argument('--enhanced-dir', type=Path, default=None)
     p.add_argument('--atol', type=float, default=1e-8)

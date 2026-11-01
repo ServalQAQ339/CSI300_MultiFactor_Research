@@ -27,9 +27,11 @@ def align(
         Universe eligibility must be validated upstream against PIT membership; a left join does not certify tradability.
     """
     keys = [date_col, asset_col]
+
     for name, frame in [('factors', factors), ('labels', labels)]:
         if frame.duplicated(keys).any():
             raise ValueError(f'Duplicate keys in {name}')
+
     if label_col in factors.columns:
         raise ValueError('Label column already exists in factors')
     joined = factors[keys + factor_cols].merge(
@@ -43,6 +45,7 @@ def align(
             np.isfinite(pd.to_numeric(joined[label_col], errors='coerce')).sum()
         ),
     }
+
     return joined.drop(columns='_merge'), audit
 
 
@@ -67,8 +70,10 @@ def daily_ic(
         Non-finite values are excluded factor-by-factor; constant vectors produce NaN correlations.
     """
     out = []
+
     for date, day in panel.groupby(date_col, sort=True):
         y = pd.to_numeric(day[label_col], errors='coerce').replace([np.inf, -np.inf], np.nan)
+
         for factor in factor_cols:
             x = pd.to_numeric(day[factor], errors='coerce').replace([np.inf, -np.inf], np.nan)
             ok = x.notna() & y.notna()
@@ -78,6 +83,7 @@ def daily_ic(
                 if n >= min_n and x[ok].nunique() > 1 and y[ok].nunique() > 1
                 else ('insufficient' if n < min_n else 'constant')
             )
+
             out.append(
                 {
                     date_col: date,
@@ -88,6 +94,7 @@ def daily_ic(
                     'status': status,
                 }
             )
+
     return pd.DataFrame(out)
 
 
@@ -109,9 +116,11 @@ def hac_mean(values: pd.Series, lags: int = 4) -> dict:
         .dropna()
         .to_numpy(dtype=float)
     )
+
     n = len(x)
     if lags < 0:
         raise ValueError('lags must be nonnegative')
+
     if n < 2:
         return {
             'n': n,
@@ -121,12 +130,14 @@ def hac_mean(values: pd.Series, lags: int = 4) -> dict:
             'hac_se': np.nan,
             'hac_t': np.nan,
         }
+
     mean = float(x.mean()); std = float(x.std(ddof=1)); e = x - mean
     lag = min(lags, n - 1)
     long_var = float(np.dot(e, e) / n)
     for k in range(1, lag + 1):
         long_var += 2 * (1 - k / (lag + 1)) * float(np.dot(e[k:], e[:-k]) / n)
     se = float(np.sqrt(max(long_var, 0) / n))
+
     return {
         'n': n,
         'mean': mean,
@@ -164,6 +175,7 @@ def quantile_returns(
     if groups < 2:
         raise ValueError('groups must be >= 2')
     rows = []
+
     for date, day in panel.groupby(date_col, sort=True):
         z = day[[asset_col, factor, label_col]].copy()
         z[factor] = pd.to_numeric(z[factor], errors='coerce')
@@ -179,4 +191,5 @@ def quantile_returns(
         row.update({f'q{q}_n': int(counts[q]) for q in range(1, groups + 1)})
         row['long_short_forward_spread'] = row[f'q{groups}_return'] - row['q1_return']
         rows.append(row)
+
     return pd.DataFrame(rows)

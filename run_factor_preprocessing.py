@@ -35,13 +35,16 @@ def run_preprocessing(methods: tuple[str, ...] = METHODS, overwrite: bool = Fals
     if not files:
         raise FileNotFoundError(f"No enhanced factor files found in {INPUT_DIR}")
     summaries = []
+
     for file in files:
         panel = pd.read_parquet(file)
         panel = panel.loc[panel.index.get_level_values("datetime") >= pd.Timestamp(RESEARCH_START)]
+
         for method in methods:
             output_dir = OUTPUT_ROOT / method
             output_dir.mkdir(parents=True, exist_ok=True)
             output_path = output_dir / file.name
+
             if output_path.exists() and not overwrite:
                 summaries.append(
                     {
@@ -52,10 +55,12 @@ def run_preprocessing(methods: tuple[str, ...] = METHODS, overwrite: bool = Fals
                     }
                 )
                 continue
+
             transformed = preprocess_factor_panel(
                 panel, PreprocessConfig(method=method, min_valid=MIN_VALID)
             )
             transformed.to_parquet(output_path, engine="pyarrow", compression="snappy")
+
             summaries.append(
                 {
                     "method": method,
@@ -70,10 +75,12 @@ def run_preprocessing(methods: tuple[str, ...] = METHODS, overwrite: bool = Fals
                 f"{method} {file.stem}: {len(transformed):,} rows, coverage={transformed.notna().mean().mean():.4f}",
                 flush=True,
             )
+
     report = pd.DataFrame(summaries)
     report_dir = DATA_ROOT / "reports" / "factor_preprocessing"
     report_dir.mkdir(parents=True, exist_ok=True)
     report.to_csv(report_dir / "preprocessing_summary.csv", index=False)
+
     return report
 
 

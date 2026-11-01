@@ -35,6 +35,7 @@ def diagnose_robust_missingness(
     )
     if not source_files:
         raise FileNotFoundError("No enhanced factor files found")
+
     for source_file in source_files:
         year = int(source_file.stem.split("_")[-1])
         raw = pd.read_parquet(source_file).sort_index()
@@ -45,8 +46,10 @@ def diagnose_robust_missingness(
         scaled = pd.read_parquet(saved_path).sort_index()
         if not raw.index.equals(scaled.index) or not raw.columns.equals(scaled.columns):
             raise ValueError(f"Index or column mismatch for {year}")
+
         for date, section in raw.groupby(level="datetime", sort=False):
             output = scaled.loc[section.index]
+
             for factor in raw.columns:
                 values = pd.to_numeric(section[factor], errors="coerce").replace(
                     [np.inf, -np.inf], np.nan
@@ -61,12 +64,14 @@ def diagnose_robust_missingness(
                     if len(valid) >= config.min_valid
                     else np.nan
                 )
+
                 if len(valid) < config.min_valid:
                     reason = "insufficient_valid_stocks"
                 elif not np.isfinite(iqr) or iqr <= config.iqr_epsilon:
                     reason = "degenerate_iqr"
                 else:
                     reason = "unexpected_missingness"
+
                 rows.append(
                     {
                         "year": year,
@@ -79,7 +84,9 @@ def diagnose_robust_missingness(
                         "created_cells": created,
                     }
                 )
+
         print(f"Diagnosed {year}", flush=True)
+
     details = pd.DataFrame(
         rows,
         columns=[
@@ -93,17 +100,22 @@ def diagnose_robust_missingness(
             "created_cells",
         ],
     )
+
     summary = (
         details.groupby(["year", "reason"], as_index=False)[["lost_cells", "created_cells"]].sum()
         if not details.empty
         else pd.DataFrame(columns=["year", "reason", "lost_cells", "created_cells"])
     )
+
     output_dir = data_root / "reports" / "preprocessing_validation"
     output_dir.mkdir(parents=True, exist_ok=True)
+
     details.to_csv(output_dir / "robust_missingness_details.csv", index=False)
     summary.to_csv(output_dir / "robust_missingness_summary.csv", index=False)
+
     total_lost = int(details["lost_cells"].sum())
     total_created = int(details["created_cells"].sum())
+
     print("\nROBUST MISSINGNESS SUMMARY")
     print(summary.to_string(index=False))
     print(f"\nTOTAL LOST: {total_lost}; TOTAL CREATED: {total_created}")
@@ -111,6 +123,7 @@ def diagnose_robust_missingness(
     print(
         f"UNEXPECTED LOST: {int(details.loc[details['reason'] == 'unexpected_missingness', 'lost_cells'].sum())}"
     )
+
     return details, summary
 
 

@@ -12,11 +12,13 @@ def load_membership_intervals(path: str | Path) -> pd.DataFrame:
         names=['instrument', 'start', 'end'],
         dtype={'instrument': str},
     )
+
     if m.empty or m.isna().any().any():
         raise ValueError('Empty or incomplete constituent intervals')
     m['start'], m['end'] = pd.to_datetime(m['start']), pd.to_datetime(m['end'])
     if (m['start'] > m['end']).any():
         raise ValueError('Constituent interval starts after its end')
+
     return m.sort_values(['instrument', 'start', 'end']).reset_index(drop=True)
 
 
@@ -27,14 +29,17 @@ def expand_membership(
     cal = pd.DatetimeIndex(calendar).normalize().unique().sort_values()
     cal = cal[(cal >= pd.Timestamp(start)) & (cal <= pd.Timestamp(end))]
     pieces = []
+
     for row in intervals.itertuples(index=False):
         left, right = cal.searchsorted(row.start, side='left'), cal.searchsorted(
             row.end, side='right'
         )
         if right > left:
             pieces.append(pd.DataFrame({'instrument': row.instrument, 'datetime': cal[left:right]}))
+
     if not pieces:
         raise ValueError('No index members in the requested trading period')
     result = pd.concat(pieces, ignore_index=True).drop_duplicates(['instrument', 'datetime'])
     result['eligible'] = True
+
     return result.sort_values(['datetime', 'instrument']).reset_index(drop=True)

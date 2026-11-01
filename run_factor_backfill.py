@@ -23,6 +23,7 @@ def run_complete_backfill(overwrite: bool = False):
         from data.process import initialize_qlib, get_trading_calendar
     except ImportError:
         from data.data_loader import initialize_qlib, get_trading_calendar
+
     initialize_qlib()
     calendar = get_trading_calendar("2014-01-01", END_DATE)
     summary = run_backfilled_factor_pipeline(
@@ -34,6 +35,7 @@ def run_complete_backfill(overwrite: bool = False):
         overwrite,
     )
     print(summary.to_string(index=False))
+
     return summary
 
 

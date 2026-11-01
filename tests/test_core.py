@@ -27,6 +27,7 @@ def test_no_future_share_leakage():
             }
         ]
     )
+
     events = normalize_shares(raw, 1.0)
     signals = pd.DataFrame(
         {
@@ -34,6 +35,7 @@ def test_no_future_share_leakage():
             'datetime': pd.to_datetime(['2015-04-10', '2015-04-13', '2015-04-14']),
         }
     )
+
     out = build_share_panel(events, signals)
     assert pd.isna(out.loc[0, 'total_shares'])
     assert pd.isna(out.loc[1, 'total_shares'])
@@ -59,12 +61,14 @@ def test_periodic_report_not_backdated():
             }
         ]
     )
+
     out = build_share_panel(
         normalize_shares(raw, 1.0),
         pd.DataFrame(
             {'instrument': ['000001'] * 2, 'datetime': pd.to_datetime(['2015-07-01', '2015-08-15'])}
         ),
     )
+
     assert pd.isna(out.loc[0,'total_shares']); assert out.loc[1,'total_shares']==100
 
 
@@ -83,6 +87,7 @@ def test_market_cap_and_industry_flags():
             'float_shares': [8e8],
         }
     )
+
     prices = pd.DataFrame(
         {'instrument': ['000001'], 'datetime': pd.to_datetime(['2020-01-02']), 'raw_close': [20.0]}
     )

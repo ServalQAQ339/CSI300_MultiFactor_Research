@@ -23,6 +23,7 @@ def sample_panel(n=100):
     """
     dates = pd.bdate_range('2020-01-01', periods=n)
     close = pd.Series(100 + np.arange(n, dtype=float), index=dates)
+
     return pd.DataFrame(
         {
             'open': close - 1,

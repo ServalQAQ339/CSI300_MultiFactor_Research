@@ -39,12 +39,14 @@ def test_pre_entry_prices_and_no_future():
             .reset_index(names="datetime")
             .set_index(["instrument", "datetime"])
         )
+
     result, stats = generate_backfilled_year(target, dates, windows=(5, 60), fetcher=fetcher)
     assert result.index.equals(eligible)
     assert np.isclose(
         result.loc[(entry, "SH600000"), "MOM_60"],
         prices.loc[entry, "close"] / prices.loc[dates[5], "close"] - 1,
     )
+
     assert pd.notna(result.loc[(entry, "SH600000"), "VOLATILITY_60"])
     assert stats["history_rows"] > len(target)
     truncated = target.loc[(slice(None, dates[68]), slice(None)), :]

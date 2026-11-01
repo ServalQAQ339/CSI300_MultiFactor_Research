@@ -41,6 +41,7 @@ def load_extended_history(
         or target.empty
     ):
         raise ValueError("Target must have nonempty (datetime, instrument) index")
+
     if lookback < 1 or batch_size < 1:
         raise ValueError("lookback and batch_size must be positive")
     calendar = pd.DatetimeIndex(calendar).sort_values().unique()
@@ -52,12 +53,15 @@ def load_extended_history(
     start = calendar[max(0, first_pos - lookback)]
     window_calendar = calendar[(calendar >= start) & (calendar <= last)]
     instruments = sorted(target.index.get_level_values("instrument").unique().tolist())
+
     if fetcher is None:
         from qlib.data import D
         fetch = D.features
     else:
         fetch = fetcher
+
     parts = []
+
     for offset in range(0, len(instruments), batch_size):
         batch = instruments[offset:offset + batch_size]
         frame = fetch(
@@ -67,24 +71,30 @@ def load_extended_history(
             end_time=str(last.date()),
             freq="day",
         )
+
         if frame is None or frame.empty:
             continue
+
         if not isinstance(frame.index, pd.MultiIndex) or set(frame.index.names) != {
             "datetime",
             "instrument",
         }:
             raise ValueError("Qlib returned an unexpected index")
+
         frame = (
             frame.rename(columns={name: name[1:] for name in FIELDS})
             .reorder_levels(["datetime", "instrument"])
             .sort_index()
         )
+
         frame = frame.loc[frame.index.get_level_values("datetime").isin(window_calendar)]
         frame = frame.loc[frame.index.get_level_values("instrument").isin(batch)]
         parts.append(frame)
+
     if not parts:
         raise ValueError("No extended OHLCV history was returned")
     history = pd.concat(parts).sort_index()
     if history.index.has_duplicates:
         raise ValueError("Duplicate historical OHLCV rows returned")
+
     return history, window_calendar

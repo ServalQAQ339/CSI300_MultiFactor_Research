@@ -38,6 +38,7 @@ def build_verified_registry(source: Path = SOURCE) -> dict:
         for n in tree.body
         if isinstance(n, ast.FunctionDef) and n.name == 'calculate_stock_factors'
     )
+
     lines = [ast.unparse(n) for n in ast.walk(fn) if isinstance(n, ast.Assign)]
     expected = [
         'opening.div(close).sub(1)',
@@ -50,10 +51,13 @@ def build_verified_registry(source: Path = SOURCE) -> dict:
         'close.div(high.rolling(window, min_periods=window).max()).sub(1)',
         'close.div(low.rolling(window, min_periods=window).min()).sub(1)',
     ]
+
     for expression in expected:
         if not any(expression in line for line in lines):
             raise ValueError(f'Unverified expression: {expression}')
+
     factors = []
+
     for name, (formula, required, family) in BASE.items():
         factors.append(
             {
@@ -66,6 +70,7 @@ def build_verified_registry(source: Path = SOURCE) -> dict:
                 'formula_verified': True,
             }
         )
+
     for w in (5, 10, 20, 60):
         for prefix, (formula, required, family) in ROLLING.items():
             name = f'{prefix}_{w}'
@@ -84,6 +89,7 @@ def build_verified_registry(source: Path = SOURCE) -> dict:
                     'formula_verified': True,
                 }
             )
+
     return {
         'schema_version': 1,
         'source_file': 'factors/factor_engine.py',

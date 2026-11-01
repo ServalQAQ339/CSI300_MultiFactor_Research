@@ -23,6 +23,7 @@ def _compare(reference: pd.DataFrame, candidate: pd.DataFrame, atol: float = 1e-
     keys_match = reference.index.equals(candidate.index) and reference.columns.equals(
         candidate.columns
     )
+
     if not keys_match:
         return {
             "keys_match": False,
@@ -30,11 +31,13 @@ def _compare(reference: pd.DataFrame, candidate: pd.DataFrame, atol: float = 1e-
             "value_mismatch": -1,
             "max_abs_difference": np.nan,
         }
+
     a, b = reference.to_numpy(dtype=float), candidate.to_numpy(dtype=float)
     finite_a, finite_b = np.isfinite(a), np.isfinite(b)
     missing_mismatch = int(np.count_nonzero(finite_a != finite_b))
     both = finite_a & finite_b
     differences = np.abs(a[both] - b[both])
+
     return {
         "keys_match": True,
         "missing_mismatch": missing_mismatch,
@@ -91,6 +94,7 @@ def validate_one_year(
             and comparison["missing_mismatch"] == 0
             and comparison["value_mismatch"] == 0
         )
+
         records.append(
             {
                 "method": method,
@@ -139,9 +143,11 @@ def validate_one_year(
     )
 
     rank_violations = 0
+
     for date in dates:
         source = panel.xs(date, level="datetime")
         output = full.xs(date, level="datetime")
+
         for col in panel.columns:
             a, b = source[col].to_numpy(dtype=float), output[col].to_numpy(dtype=float)
             mask = np.isfinite(a) & np.isfinite(b)
@@ -151,6 +157,7 @@ def validate_one_year(
             x, y = a[mask][order], b[mask][order]
             rank_violations += int(np.count_nonzero(np.diff(y)[np.diff(x) > 0] <= -1e-10))
             rank_violations += int(np.count_nonzero(np.abs(np.diff(y)[np.diff(x) == 0]) > 1e-10))
+
     records.append(
         {
             "method": method,
@@ -185,6 +192,7 @@ def validate_one_year(
         else:
             saved = pd.read_parquet(saved_path).sort_index()
             add("saved_output", _compare(full, saved), str(saved_path))
+
     return records
 
 
@@ -209,6 +217,7 @@ def run_validation(
     if not files:
         raise FileNotFoundError(f"No matching enhanced factor files found: {source_dir}")
     results = []
+
     for file in files:
         year = int(file.stem.split("_")[-1])
         panel = pd.read_parquet(file)
@@ -218,15 +227,19 @@ def run_validation(
             for record in validate_one_year(panel, method, saved_path=saved_path):
                 results.append({"year": year, **record})
             print(f"Validated {year}: {method}", flush=True)
+
     report = pd.DataFrame(results)
     report_dir = data_root / "reports" / "preprocessing_validation"
     report_dir.mkdir(parents=True, exist_ok=True)
     report.to_csv(report_dir / "preprocessing_validation.csv", index=False)
+
     summary = report.groupby(["method", "test"], as_index=False).agg(
         checks=("passed", "size"),
         failed=("passed", lambda s: int((~s).sum())),
         total_value_mismatches=("value_mismatch", "sum"),
     )
+
     summary.to_csv(report_dir / "validation_summary.csv", index=False)
     print("\nVALIDATION SUMMARY\n" + summary.to_string(index=False), flush=True)
+
     return report

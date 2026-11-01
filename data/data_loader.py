@@ -134,6 +134,7 @@ def build_daily_dataset(overwrite: bool = False) -> pd.DataFrame:
             }
         )
         print(f"Completed {year}: {len(df):,} observations", flush=True)
+
         del df
 
     return pd.DataFrame(summary)

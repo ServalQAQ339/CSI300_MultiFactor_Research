@@ -23,6 +23,7 @@ def test_alignment_and_purging():
             **{name: [1.0, 2.0] for name in FACTOR_NAMES},
         }
     )
+
     labels = pd.DataFrame(
         {
             'signal_date': dates,
@@ -34,6 +35,7 @@ def test_alignment_and_purging():
             'exit_date_5d': pd.to_datetime(['2021-01-08', '2021-01-11']),
         }
     )
+
     panel, audit = prepare_panel(factors, labels)
     assert audit['factor_matched_rows'] == 2
     assert audit['valid_labels_crossing_split_end'] == 2
@@ -57,6 +59,7 @@ def test_invalid_status():
             **{name: [1.0] for name in FACTOR_NAMES},
         }
     )
+
     labels = pd.DataFrame(
         {
             'signal_date': pd.to_datetime(['2021-01-04']),
@@ -68,6 +71,7 @@ def test_invalid_status():
             'exit_date_5d': pd.to_datetime(['2021-01-12']),
         }
     )
+
     panel, audit = prepare_panel(factors, labels)
     assert audit['valid_5d_label_rows'] == 0
     assert pd.isna(panel['research_label_5d'].iloc[0])

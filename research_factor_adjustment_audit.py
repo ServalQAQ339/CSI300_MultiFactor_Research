@@ -38,11 +38,13 @@ def load_membership(path, start=START, end=END):
     )
     frame['start'] = pd.to_datetime(frame['start'])
     frame['end'] = pd.to_datetime(frame['end'])
+
     if (
         frame[['instrument', 'start', 'end']].isna().any().any()
         or (frame['start'] > frame['end']).any()
     ):
         raise ValueError('Invalid membership intervals')
+
     return frame.loc[(frame['start'] <= end) & (frame['end'] >= start)].copy()
 
 
@@ -78,6 +80,7 @@ def compute_changes(frame, calendar):
     d['price_missing'] = (
         ~np.isfinite(d['open']) | ~np.isfinite(d['close']) | (d['open'] <= 0) | (d['close'] <= 0)
     )
+
     return d
 
 
@@ -117,6 +120,7 @@ def summarize_thresholds(frame):
     eligible = frame.loc[frame['valid_pair']].copy()
     n = len(eligible)
     values = eligible['factor_change'].abs()
+
     return pd.DataFrame(
         [
             {
@@ -164,6 +168,7 @@ def label_overlap(events, labels, horizon=5):
         events['valid_pair'] & events['factor_change'].abs().gt(0.01), ['instrument', 'datetime']
     ].copy()
     ev['datetime'] = pd.to_datetime(ev['datetime'])
+
     for instrument, group in d.groupby('instrument', sort=False):
         dates = np.sort(
             ev.loc[ev['instrument'].eq(instrument), 'datetime'].to_numpy(dtype='datetime64[ns]')
@@ -174,8 +179,10 @@ def label_overlap(events, labels, horizon=5):
         d.loc[group.index, 'significant_factor_events'] = np.searchsorted(
             dates, right, side='right'
         ) - np.searchsorted(dates, left, side='left')
+
     d['absolute_return'] = d[label].abs()
     d['extreme_return_20pct'] = d['absolute_return'].gt(0.2)
+
     return d
 
 
@@ -193,6 +200,7 @@ def run(qlib_dir=DEFAULT_QLIB, data_dir=DEFAULT_DATA, batch_size=80):
     """
     import qlib
     from qlib.data import D
+
     qlib_dir = Path(qlib_dir)
     data_dir = Path(data_dir)
     out = data_dir / 'reports' / 'factor_adjustment_audit' / 'research_universe'
@@ -202,6 +210,7 @@ def run(qlib_dir=DEFAULT_QLIB, data_dir=DEFAULT_DATA, batch_size=80):
     qlib.init(provider_uri=str(qlib_dir), region='cn')
     cal = pd.DatetimeIndex(D.calendar(start_time='2015-01-01', end_time='2026-09-30', freq='day'))
     frames = []
+
     for j in range(0, len(stocks), batch_size):
         batch = stocks[j : j + batch_size]
         x = D.features(
@@ -211,9 +220,11 @@ def run(qlib_dir=DEFAULT_QLIB, data_dir=DEFAULT_DATA, batch_size=80):
             end_time='2026-09-30',
             freq='day',
         ).reset_index()
+
         x = x.rename(columns={'$factor': 'factor', '$open': 'open', '$close': 'close'})
         frames.append(x)
         print(f'Fetched {min(j + batch_size, len(stocks))}/{len(stocks)} instruments', flush=True)
+
     panel = pd.concat(frames, ignore_index=True)
     panel['datetime'] = pd.to_datetime(panel['datetime'])
     changes = compute_changes(panel, cal)
@@ -221,11 +232,13 @@ def run(qlib_dir=DEFAULT_QLIB, data_dir=DEFAULT_DATA, batch_size=80):
     research = research.loc[research['datetime'].between(START, END)].copy()
     thresholds = summarize_thresholds(research)
     thresholds.to_csv(out / 'research_universe_thresholds.csv', index=False)
+
     events = research.loc[research['valid_pair'] & research['factor_change'].abs().gt(0.01)].copy()
     events['absolute_change'] = events['factor_change'].abs()
     events.sort_values('absolute_change', ascending=False).head(200).to_csv(
         out / 'research_universe_largest_changes.csv', index=False
     )
+
     by_year = (
         research.assign(year=research['datetime'].dt.year)
         .groupby('year')
@@ -238,7 +251,9 @@ def run(qlib_dir=DEFAULT_QLIB, data_dir=DEFAULT_DATA, batch_size=80):
         .reset_index()
     )
     by_year.to_csv(out / 'research_universe_by_year.csv', index=False)
+
     labels_path = data_dir / 'data' / 'labels' / 'forward_labels.parquet'; overlap_info = {}
+
     if labels_path.exists():
         cols = [
             'instrument',
@@ -248,6 +263,7 @@ def run(qlib_dir=DEFAULT_QLIB, data_dir=DEFAULT_DATA, batch_size=80):
             'label_5d',
             'label_status_5d',
         ]
+
         labels = pd.read_parquet(labels_path, columns=cols)
         overlap = label_overlap(research, labels)
         grouped = (
@@ -256,15 +272,18 @@ def run(qlib_dir=DEFAULT_QLIB, data_dir=DEFAULT_DATA, batch_size=80):
             .rename('count')
             .reset_index()
         )
+
         grouped = grouped.rename(
             columns={'significant_factor_events': 'has_significant_factor_event'}
         )
         grouped.to_csv(out / 'research_universe_label_overlap.csv', index=False)
+
         overlap_info = {
             'valid_5d_labels': len(overlap),
             'labels_with_event': int(overlap['significant_factor_events'].gt(0).sum()),
             'extreme_5d_labels': int(overlap['extreme_return_20pct'].sum()),
         }
+
     summary = {
         'historical_research_stocks': len(stocks),
         'research_member_rows_with_qlib_keys': len(research),
@@ -280,11 +299,13 @@ def run(qlib_dir=DEFAULT_QLIB, data_dir=DEFAULT_DATA, batch_size=80):
             'Large factor changes are not verified corporate actions',
         ],
     }
+
     (out / 'research_universe_summary.json').write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8'
     )
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     print('Reports:', out)
+
     return summary
 
 

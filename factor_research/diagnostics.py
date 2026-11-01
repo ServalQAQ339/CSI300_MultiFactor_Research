@@ -28,8 +28,10 @@ def ic_diagnostics(
     date_phase = pd.Series(np.arange(len(dates)) % horizon, index=dates)
     d['phase'] = d.signal_date.map(date_phase)
     acf_rows, phase_rows = [], []
+
     for segment, (start, end) in segments.items():
         subset = d.loc[d.signal_date.between(start, end)]
+
         for factor, group in subset.groupby('factor'):
             for metric in ('ic', 'rank_ic'):
                 group = group.sort_values('signal_date')
@@ -38,6 +40,7 @@ def ic_diagnostics(
                     .astype(float)
                     .replace([np.inf, -np.inf], np.nan)
                 )
+
                 acf_rows.append(
                     {
                         'split': segment,
@@ -52,12 +55,14 @@ def ic_diagnostics(
                         },
                     }
                 )
+
                 for phase in range(horizon):
                     vals = (
                         group.loc[group.phase.eq(phase), metric]
                         .replace([np.inf, -np.inf], np.nan)
                         .dropna()
                     )
+
                     phase_rows.append(
                         {
                             'split': segment,
@@ -69,6 +74,7 @@ def ic_diagnostics(
                             'std': float(vals.std(ddof=1)) if len(vals) > 1 else np.nan,
                         }
                     )
+
     return pd.DataFrame(acf_rows), pd.DataFrame(phase_rows)
 
 
@@ -93,6 +99,7 @@ def bh_fdr(pvalues: pd.Series) -> pd.Series:
     restored = np.empty(m)
     restored[order] = adjusted
     result.loc[good] = restored
+
     return result
 
 
@@ -115,6 +122,7 @@ def daily_factor_correlations(
     names = list(factor_cols)
     sums = np.zeros((len(names), len(names)))
     counts = np.zeros_like(sums, dtype=int)
+
     for _, group in factors.groupby('signal_date', sort=True):
         x = group[names].replace([np.inf, -np.inf], np.nan)
         valid = x.notna().astype(int).T.dot(x.notna().astype(int))
@@ -123,7 +131,9 @@ def daily_factor_correlations(
         eligible = np.isfinite(a) & (valid.to_numpy() >= min_n)
         sums[eligible] += a[eligible]
         counts[eligible] += 1
+
     avg = np.divide(sums, counts, out=np.full_like(sums, np.nan), where=counts>0)
+
     return pd.DataFrame(avg, index=names, columns=names), pd.DataFrame(
         counts, index=names, columns=names
     )
@@ -150,9 +160,11 @@ def quantile_diagnostics(frame: pd.DataFrame, factor: str, segments: dict) -> pd
         'q5_return',
         'long_short_forward_spread',
     }
+
     if not required.issubset(frame.columns):
         raise ValueError(f'Unsupported quantile schema: {list(frame.columns)}')
     d = frame.copy(); d['signal_date'] = pd.to_datetime(d['signal_date']); rows = []
+
     for segment, (start, end) in segments.items():
         p = d.loc[d.signal_date.between(start, end)]
         means = [p[f'q{i}_return'].mean() for i in range(1, 6)]
@@ -167,4 +179,5 @@ def quantile_diagnostics(frame: pd.DataFrame, factor: str, segments: dict) -> pd
                 'monotone_decreasing': bool(all(means[i] >= means[i + 1] for i in range(4))),
             }
         )
+
     return pd.DataFrame(rows)

@@ -24,6 +24,7 @@ def test_compare_factor_frames() -> None:
     assert details.loc[0, "lost"] == 1
     assert details.loc[0, "changed_existing"] == 1
     assert summary["rows"] == 4
+
     try:
         compare_factor_frames(baseline, enhanced.iloc[:-1], price, 2020)
         raise AssertionError("Index mismatch should raise")

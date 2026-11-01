@@ -20,6 +20,7 @@ class TestLabels(unittest.TestCase):
                 'factor': 0.1,
             }
         )
+
         self.m = pd.DataFrame({'instrument': 'SH600000', 'datetime': self.cal, 'eligible': True})
         self.cfg = LabelConfig(
             horizons=(1, 5, 10),

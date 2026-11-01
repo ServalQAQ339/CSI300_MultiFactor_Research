@@ -32,6 +32,7 @@ def load_annual_panels(
     panel = pd.concat(frames).reorder_levels(["datetime", "instrument"]).sort_index()
     if panel.index.has_duplicates:
         raise ValueError(f"Duplicate keys in {prefix} panels")
+
     return panel
 
 
@@ -97,12 +98,15 @@ def audit_factor_panels(
             }
         ]
     )
+
     factor_year_rows = []
     stock_year_rows = []
+
     for year in sorted(years.unique()):
         mask = years == year
         frame = numeric.loc[mask]
         v = valid.loc[mask]
+
         for col in numeric.columns:
             s = frame[col]
             finite_s = s.where(v[col])
@@ -124,7 +128,9 @@ def audit_factor_panels(
                     "p99": float(finite_s.quantile(0.99)),
                 }
             )
+
         by_stock = v.groupby(level="instrument").mean()
+
         for stock, row in by_stock.iterrows():
             stock_year_rows.append(
                 {
@@ -135,6 +141,7 @@ def audit_factor_panels(
                     "min_factor_coverage": float(row.min()),
                 }
             )
+
     factor_year = pd.DataFrame(factor_year_rows)
     stock_year = pd.DataFrame(stock_year_rows)
     year_summary = factor_year.groupby("year", as_index=False).agg(
@@ -143,14 +150,17 @@ def audit_factor_panels(
         constant_factor_count=("is_constant", "sum"),
         total_inf_cells=("inf_count", "sum"),
     )
+
     year_summary["rows"] = [int((years == year).sum()) for year in year_summary["year"]]
     boundary_rows = []
+
     for year in sorted(years.unique()):
         year_dates = calendar[calendar.year == year]
         first_dates = year_dates[:boundary_window]
         mask = years == year
         first_mask = mask & dates.isin(first_dates)
         rest_mask = mask & ~dates.isin(first_dates)
+
         for col in numeric.columns:
             boundary_rows.append(
                 {
@@ -166,6 +176,7 @@ def audit_factor_panels(
                     ),
                 }
             )
+
     year_boundary = pd.DataFrame(boundary_rows)
     session_position = pd.Series(np.arange(len(calendar)), index=calendar)
     first_seen = (
@@ -173,11 +184,13 @@ def audit_factor_panels(
         .groupby("instrument")["datetime"]
         .min()
     )
+
     first_seen_pos = dict(zip(first_seen.index, session_position.reindex(first_seen).to_numpy()))
     observed_pos = session_position.reindex(dates).to_numpy()
     initial_pos = np.array([first_seen_pos[stock] for stock in instruments])
     age = observed_pos - initial_pos
     first_rows = []
+
     for window_label, mask in (
         ("first_observed_0_to_19", (age >= 0) & (age < min(entry_window, 20))),
         ("first_observed_0_to_59", (age >= 0) & (age < entry_window)),
@@ -192,6 +205,7 @@ def audit_factor_panels(
                     "coverage": float(valid.loc[mask, col].mean()) if mask.any() else np.nan,
                 }
             )
+
     first_observed = pd.DataFrame(first_rows)
     cross_section = (
         pd.DataFrame({"datetime": dates, "valid_factor_count": valid.sum(axis=1).to_numpy()})
@@ -202,6 +216,7 @@ def audit_factor_panels(
             zero_valid_factor_stocks=("valid_factor_count", lambda s: int((s == 0).sum())),
         )
     )
+
     return {
         "integrity": integrity,
         "factor_year": factor_year,

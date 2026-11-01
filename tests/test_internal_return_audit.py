@@ -17,6 +17,7 @@ class TestInternalReturnAudit(unittest.TestCase):
                 'factor': [1.0, 1.1],
             }
         )
+
         self.labels = pd.DataFrame(
             {
                 'instrument': ['A'],

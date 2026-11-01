@@ -30,6 +30,7 @@ def membership_diagnostics(
     """Description: Reconcile all market-day membership keys with yearly processed keys. Parameters: intervals (pd.DataFrame): membership intervals; processed_dir (Path): annual Parquet directory; calendar (pd.DatetimeIndex): market dates. Returns: tuple[pd.DataFrame,pd.DataFrame]: yearly summary and missing/extra key details. Notes: No assumptions are made about the reason for missing processed rows."""
     calendar = pd.DatetimeIndex(calendar).normalize().unique().sort_values()
     records = []
+
     for instrument, group in intervals.groupby('instrument', sort=False):
         dates = pd.DatetimeIndex([])
         for row in group.itertuples():
@@ -40,11 +41,14 @@ def membership_diagnostics(
                 ]
             )
         records.extend((date, instrument) for date in dates)
+
     expected = pd.MultiIndex.from_tuples(records, names=['datetime', 'instrument']).unique()
     summaries, details = [], []
+
     for year in range(2015, 2027):
         target = expected[expected.get_level_values('datetime').year == year]
         file = processed_dir / f'csi300_daily_{year}.parquet'
+
         if not file.exists():
             summaries.append(
                 {
@@ -56,7 +60,9 @@ def membership_diagnostics(
                     'missing': np.nan,
                 }
             )
+
             continue
+
         actual = pd.read_parquet(file).reset_index()[['datetime', 'instrument']]
         actual['datetime'] = pd.to_datetime(actual['datetime']).dt.normalize()
         actual = actual.loc[actual['datetime'].between('2015-04-01', '2026-09-30')]
@@ -74,11 +80,13 @@ def membership_diagnostics(
                 'duplicate_keys': duplicate_count,
             }
         )
+
         details.extend(
             {'year': year, 'datetime': date, 'instrument': stock, 'difference': kind}
             for kind, keys in [('missing_processed', missing), ('extra_processed', extra)]
             for date, stock in keys
         )
+
     return pd.DataFrame(summaries), pd.DataFrame(
         details, columns=['year', 'datetime', 'instrument', 'difference']
     )
@@ -113,11 +121,13 @@ def price_diagnostics(
             for t in (0.0001, 0.001, 0.01, 0.05)
         ]
     )
+
     top = (
         c.loc[c['relative_change'].notna()]
         .assign(abs_change=lambda x: x['relative_change'].abs())
         .nlargest(100, 'abs_change')
     )
+
     return attribution, thresholds, top
 
 
@@ -130,6 +140,7 @@ def label_diagnostics(
     split = labels['split'].astype(str).str.lower()
     positions = calendar.get_indexer(dates)
     all_counts, all_status, examples = [], [], []
+
     for h in HORIZONS:
         suffix = f'{h}d'
         status = labels[f'label_status_{suffix}'].astype(str)
@@ -162,6 +173,7 @@ def label_diagnostics(
             )
             | dates.gt(split_end),
         }
+
         for name, mask in problems.items():
             all_counts.append({'horizon': h, 'check': name, 'violations': int(mask.sum())})
             if mask.any():
@@ -169,10 +181,12 @@ def label_diagnostics(
                 sample['horizon'] = h
                 sample['check'] = name
                 examples.append(sample)
+
         counts = labels.groupby(['split', f'label_status_{suffix}'], dropna=False).size()
         all_status.extend(
             {'split': a, 'horizon': h, 'status': b, 'count': int(n)} for (a, b), n in counts.items()
         )
+
     return (
         pd.DataFrame(all_counts),
         pd.DataFrame(all_status),
@@ -189,6 +203,7 @@ def alignment_diagnostics(labels: pd.DataFrame, factors_dir: Path) -> pd.DataFra
     result = []
     keys = labels[['signal_date', 'instrument']].rename(columns={'signal_date': 'datetime'}).copy()
     keys['datetime'] = pd.to_datetime(keys['datetime']).dt.normalize()
+
     for year in range(2015, 2027):
         file = factors_dir / f'csi300_factors_{year}.parquet'
         target = keys.loc[keys['datetime'].dt.year.eq(year)]
@@ -211,4 +226,5 @@ def alignment_diagnostics(labels: pd.DataFrame, factors_dir: Path) -> pd.DataFra
                 'factor_duplicate_keys': int(f.duplicated().sum()),
             }
         )
+
     return pd.DataFrame(result)

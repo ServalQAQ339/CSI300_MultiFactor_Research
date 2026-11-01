@@ -21,8 +21,10 @@ def main() -> None:
     source = root / 'reports' / 'label_engineering'
     out = root / 'reports' / 'label_validation'
     out.mkdir(parents=True, exist_ok=True)
+
     import qlib
     from qlib.data import D
+
     qlib.init(provider_uri=str(qroot), region='cn')
     calendar = pd.DatetimeIndex(
         D.calendar(start_time='2015-01-01', end_time='2026-09-30', freq='day')
@@ -30,22 +32,30 @@ def main() -> None:
     labels = pd.read_parquet(root / 'data' / 'labels' / 'forward_labels.parquet')
     intervals = read_membership(qroot / 'instruments' / 'csi300.txt')
     membership, missing = membership_diagnostics(intervals, root / 'data' / 'processed', calendar)
+
     membership.to_csv(out / 'membership_reconciliation.csv', index=False)
     missing.to_csv(out / 'membership_difference_details.csv', index=False)
+
     issues = pd.read_csv(source / 'price_audit.csv')
     candidates = pd.read_csv(source / 'factor_change_candidates.csv')
     price, thresholds, largest = price_diagnostics(issues, candidates)
+
     price.to_csv(out / 'price_issue_attribution.csv', index=False)
     thresholds.to_csv(out / 'factor_change_thresholds.csv', index=False)
     largest.to_csv(out / 'factor_change_largest_100.csv', index=False)
+
     integrity, status, examples = label_diagnostics(labels, calendar)
+
     integrity.to_csv(out / 'label_integrity.csv', index=False)
     status.to_csv(out / 'label_missingness.csv', index=False)
     examples.to_csv(out / 'label_integrity_examples.csv', index=False)
+
     alignment = alignment_diagnostics(labels, root / 'data' / 'factors_enhanced')
     alignment.to_csv(out / 'factor_label_alignment.csv', index=False)
+
     processed = sorted((root / 'data' / 'processed').glob('csi300_daily_*.parquet'))
     yearly = []
+
     for file in processed:
         frame = pd.read_parquet(file)
         idx = (
@@ -53,6 +63,7 @@ def main() -> None:
             if 'datetime' in frame.index.names
             else pd.to_datetime(frame['datetime'])
         )
+
         dates = pd.to_datetime(idx)
         yearly.append(
             {
@@ -67,7 +78,9 @@ def main() -> None:
                 ),
             }
         )
+
     sample = pd.DataFrame(yearly); sample.to_csv(out / 'sample_reconciliation.csv', index=False)
+
     summary = {
         'label_rows': len(labels),
         'processed_total_rows': int(sample['all_rows'].sum()),
@@ -87,6 +100,7 @@ def main() -> None:
             'Price adjustment not independently verified',
         ],
     }
+
     (out / 'validation_summary.json').write_text(
         json.dumps(summary, indent=2, ensure_ascii=False), encoding='utf-8'
     )

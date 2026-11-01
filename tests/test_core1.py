@@ -20,6 +20,7 @@ def test_ic_perfect_monotonic():
             'y': [2, 4, 6, 8],
         }
     )
+
     a = daily_ic(d, ['x'], 'y', min_n=3).iloc[0]
     assert np.isclose(a.ic, 1) and np.isclose(a.rank_ic, 1)
 
@@ -40,6 +41,7 @@ def test_ties_and_constant():
             'y': [1, 2, 3, 4],
         }
     )
+
     a = daily_ic(d, ['x', 'c'], 'y', min_n=3).set_index('factor')
     assert np.isclose(a.loc['x', 'rank_ic'], pd.Series(d.x).corr(pd.Series(d.y), method='spearman'))
     assert a.loc['c', 'status'] == 'constant' and np.isnan(a.loc['c', 'ic'])
@@ -76,5 +78,6 @@ def test_hac_zero_lag_and_quantiles():
             'y': np.arange(10) / 100,
         }
     )
+
     q = quantile_returns(d, 'x', 'y', min_n=5).iloc[0]
     assert np.isclose(q.long_short_forward_spread, .08)

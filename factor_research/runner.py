@@ -28,10 +28,13 @@ def run(root: Path, output: Path, min_n: int = 30):
     output.mkdir(parents=True, exist_ok=True)
     ic = daily_ic(panel, FACTOR_NAMES, 'research_label_5d', 'signal_date', min_n)
     ic.to_parquet(output / 'daily_ic_raw_5d.parquet', index=False)
+
     summary, coverage, yearly = [], [], []
+
     for factor in FACTOR_NAMES:
         x = pd.to_numeric(panel[factor], errors='coerce').replace([np.inf, -np.inf], np.nan)
         y = panel['research_label_5d']; paired = x.notna() & y.notna()
+
         for split, (start, end) in SEGMENTS.items():
             mask = panel.split.eq(split)
             n = int(mask.sum())
@@ -50,9 +53,11 @@ def run(root: Path, output: Path, min_n: int = 30):
                     ),
                 }
             )
+
             part = ic.loc[(ic.factor == factor) & ic.signal_date.between(start, end)].sort_values(
                 'signal_date'
             )
+
             for metric in ('ic', 'rank_ic'):
                 for lag in (0, 4, 9, 19):
                     summary.append(
@@ -69,12 +74,15 @@ def run(root: Path, output: Path, min_n: int = 30):
                             **hac_summary(part, metric, lag),
                         }
                     )
+
         q = quantile_returns(
             panel, factor, 'research_label_5d', 'signal_date', 'instrument', 5, min_n
         )
         q.to_parquet(output / f'quantiles_{factor}_raw_5d.parquet', index=False)
+
     pd.DataFrame(summary).to_csv(output / 'factor_ic_summary.csv', index=False)
     pd.DataFrame(coverage).to_csv(output / 'factor_coverage.csv', index=False)
+
     yearly = (
         ic.assign(year=ic.signal_date.dt.year)
         .groupby(['factor', 'year'], as_index=False)
@@ -85,5 +93,7 @@ def run(root: Path, output: Path, min_n: int = 30):
         )
     )
     yearly.to_csv(output / 'yearly_stability.csv', index=False)
+
     write_audit(output / 'alignment_audit.json', audit)
+
     return audit
