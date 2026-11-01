@@ -1,0 +1,17 @@
+# Python caches and bytecode
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments and IDE files
+.venv/
+venv/
+.idea/
+.vscode/
+
+# Data and research outputs (kept on D:, never versioned)
+*.parquet
+*.feather
+*.pkl
+*.csv
+*.h5
