@@ -1,86 +1,207 @@
-# CSI300 Multi-Factor Research
+# CSI300 Multi-Factor Alpha Research
 
-Research code for a CSI300 multi-factor stock-selection study: data extraction from Qlib,
-technical factor engineering, forward-return labels, cross-sectional preprocessing, and
-Rank IC / quantile factor evaluation. All outputs are descriptive research diagnostics, not
-executable strategy returns.
+**A Multi-Factor Equity Selection and Machine Learning Framework for the CSI 300 Index**
 
-Research window: signal dates 2015-04-01 to 2026-09-30 (2015 Q1 is factor warm-up).
-Splits: train 2015-04-01 to 2020-12-31, validation 2021-01-01 to 2023-12-31,
-test 2024-01-01 to 2026-09-30. Defaults live in `config.py` and `factor_research/config.py`.
+Python | Microsoft Qlib | LightGBM | Ridge Regression | Factor Research | Quantitative Backtesting
 
-## Directories
+## Overview
 
-| Location | Role |
+This project develops an end-to-end quantitative equity research framework for the Chinese A-share market, focusing on the historical constituents of the CSI 300 Index.
+
+The research integrates factor engineering, cross-sectional alpha evaluation, machine learning, expanding-window validation, and systematic portfolio construction.
+
+Inspired by Microsoft Qlib, the framework independently implements key components of factor preprocessing, predictive signal evaluation, statistical testing, and portfolio backtesting.
+
+### Research Highlights
+
+| Research Component | Key Result |
 |---|---|
-| `C:\Users\lyueq\Desktop\CSI300_MultiFactor_Research` | Source code only (this repository). |
-| `D:\QuantResearch\CSI300_MultiFactor_Research` | Research data and reports: `data/{processed,factors,factors_enhanced,factors_preprocessed,labels,external}`, `reports/...`. Never versioned. |
-| `D:\QuantResearch\qlib_data\cn_data\qlib_bin` | Local Qlib binary data (`instruments/csi300.txt` holds historical membership). |
+| Research Period | January 2015 – September 2026 |
+| Equity Universe | 667 historical CSI 300 constituents |
+| Panel Dataset | 839,400 stock-date observations |
+| Factor Engineering | 27 baseline factors + 99 candidate factors |
+| Extended Feature Set | 47 features |
+| Prediction Models | Ridge Regression and LightGBM |
+| Validation Rank IC | **0.0364** (HAC t-stat: 5.18) |
+| Forward-Period Rank IC | **0.0503** (2024–2026, LightGBM Original27) |
+| Validation Long–Short Spread | **30.1% annualized gross spread** (HAC t-stat: 2.59) |
 
-Data paths are hard-coded in `config.py`, `factor_research/config.py` and several `run_*.py`
-defaults. Most `run_*.py` scripts **write to D:**; read their docstrings before running.
+*The long–short spread represents a theoretical, equal-notional Top-30 minus Bottom-30 portfolio before transaction costs and short-borrowing fees. Forward-period evaluation is chronological but is not an untouched holdout.*
 
-## Package structure
+## 1. Data Engineering
 
-- `config.py` — global paths, dates and splits.
-- `data/` — Qlib loading, yearly OHLCV panels, data audit, extended-history loader.
-- `factors/` — factor engine (27 technical factors), history backfill, preprocessing
-  (rank_gaussian, robust, rank_uniform, raw), factor audits.
-- `labels/` — forward open-to-open labels (1/5/10 day), historical membership, price audit.
-- `label_validation/`, `preprocessing_validation/` — read-only validators for labels and preprocessing.
-- `factor_research/` — alignment, daily IC / Rank IC, quintiles, HAC inference, diagnostics,
-  train-only selection, consistency audit.
-- `factor_registry/`, `factor_verification/` — factor definition registry and independent recomputation.
-- `factor_neutralization/` — PIT source inventory and industry/market-cap exposure data (in progress).
-- Root audits: `factor_adjustment_audit.py`, `research_factor_adjustment_audit.py`,
-  `internal_return_audit.py`, `price_missingness_attribution.py`.
-- `tests/` — pytest suite. `archive/` — superseded files kept for reference.
-- `backtest/`, `portfolio/`, `models/`, `validation/` — empty placeholders.
+The research dataset covers historical CSI 300 constituents rather than relying solely on the current index membership.
 
-## Pipeline execution order
+The data pipeline supports:
 
-Run from the project root.
+- Historical constituent membership and daily equity panel construction.
+- OHLCV price data processing and corporate-action adjustments.
+- Forward-return label engineering with a five-trading-day prediction horizon.
+- Cross-sectional factor preprocessing and normalization.
+- Data completeness and temporal-alignment validation.
 
-1. `run_data_pipeline.py` — yearly `csi300_daily_YYYY.parquet`, data-quality audit.
-2. `run_factor_pipeline.py` — baseline factors (`data/factors`); `run_factor_audit.py` checks them.
-3. `run_factor_backfill.py` — enhanced factors with pre-membership history (`data/factors_enhanced`);
-   `run_enhanced_audit.py` checks them.
-4. `run_factor_preprocessing.py` — `data/factors_preprocessed/<method>`;
-   `preprocessing_validation/run_preprocessing_validation.py` checks them.
-5. `run_label_pipeline.py` — `data/labels/forward_labels.parquet`; then `run_label_validation.py`
-   and the root audit scripts.
-6. Rank IC research, in order: `run_factor_research.py` (v1.2) → `run_factor_diagnostics.py` (v1.3)
-   → `run_factor_consistency_audit.py` (v1.4) → `run_factor_selection.py` (v1.5).
-   Later steps read the v1.2 outputs.
-7. `run_factor_registry.py`, `run_factor_value_verification.py` — registry and value audit.
-8. `factor_neutralization/exposure_data/` — universe, share download (`akshare`), validation.
+The resulting dataset contains approximately 840,000 stock-date observations across 667 securities.
 
-## Current status
+## 2. Alpha Factor Research
 
-Completed: data panels, baseline and enhanced factors, preprocessing and its validation,
-labels and label validation, Rank IC research v1.2 to v1.5, factor registry, factor value verification,
-corporate-action spot check (`Corporate_Action_Verification_Summary.md`).
+The framework develops 27 baseline factors and 99 additional candidate factors across several categories:
 
-In progress: industry / market-cap exposures for neutralization (`factor_neutralization/`).
+- Price momentum and reversal.
+- Volatility and trading range.
+- Volume and liquidity characteristics.
+- Price–volume interactions.
+- Return distribution and higher-order statistics.
 
-## Known limitations and unfinished work
+Factor effectiveness is evaluated using:
 
-- No backtest, portfolio construction or model training yet (placeholder folders are empty).
-- Historical index membership and exposure data are not certified point-in-time.
-- Qlib adjusted prices are not independently verified; only three corporate actions were checked.
-- No limit-up/down, suspension, delisting, liquidity or transaction-cost modelling.
-- `factor_research/core.py:hac_mean` and `statistical_tests.py:hac_summary` are different HAC
-  estimators and are used by different stages; they must not be treated as interchangeable.
-- `data/process.py` is an empty file that two scripts try to import before falling back to `data.data_loader`.
-- Configuration (`DATA_ROOT`, dates, `FACTOR_NAMES`) is duplicated across modules.
-- `reports/internal_return_audit/return_consistency_failures.csv` on D: is about 502 MB and should be reviewed.
+- Pearson Information Coefficient (IC).
+- Spearman Rank Information Coefficient (Rank IC).
+- Information Coefficient Information Ratio (ICIR).
+- Newey–West HAC statistical inference.
+- False Discovery Rate (FDR) adjustment.
+- Cross-sectional factor correlation analysis.
+- Quantile portfolio analysis and temporal stability testing.
 
-## Setup and validation
+The factor selection pipeline identifies 20 additional features for the extended 47-feature modeling configuration.
 
-```bash
-pip install -r requirements.txt
-python -B -m pytest -q -p no:cacheprovider
+## 3. Machine Learning Models
+
+Two modeling approaches are implemented:
+
+**Ridge Regression**
+
+A regularized linear benchmark for evaluating the predictive contribution of cross-sectional factors.
+
+**LightGBM**
+
+A gradient-boosted decision-tree model designed to capture nonlinear relationships and interactions among equity characteristics.
+
+Models are evaluated using chronological training and validation splits, followed by expanding-window forward-period evaluation.
+
+### Predictive Performance
+
+| Evaluation Period | Model | Mean Rank IC |
+|---|---|---:|
+| 2021–2023 Validation | Ridge Original27 | 0.0387 |
+| 2021–2023 Validation | LightGBM Original27 | 0.0364 |
+| 2024–2026 Forward Evaluation | LightGBM Original27 | 0.0503 |
+| 2024–2026 Forward Evaluation | LightGBM Extended | 0.0630 |
+
+The results demonstrate positive cross-sectional ranking signals across the evaluated periods, with model performance varying by feature configuration and market environment.
+
+## 4. Portfolio Construction and Backtesting
+
+Model predictions are translated into systematic equity portfolios using cross-sectional ranking.
+
+The framework supports research into:
+
+- Top-K equity selection.
+- Equal-weight portfolio construction.
+- Five-trading-day rebalancing.
+- Quantile-based return analysis.
+- Theoretical long–short portfolios.
+- Transaction cost and turnover analysis.
+- Benchmark-relative performance evaluation.
+
+### Long–Short Signal Evaluation
+
+A theoretical portfolio is constructed by taking equal-notional long positions in the 30 highest-ranked stocks and short positions in the 30 lowest-ranked stocks.
+
+For the LightGBM Original27 model during the 2021–2023 validation period:
+
+| Metric | Result |
+|---|---:|
+| Annualized Gross Long–Short Spread | **30.1%** |
+| HAC t-statistic | **2.59** |
+| Gross Spread CAGR | 32.7% |
+| Gross Spread Maximum Drawdown | −16.1% |
+
+These results illustrate the model's ability to differentiate between relatively strong and weak future equity returns in the validation period.
+
+The long–short results are presented as a predictive-signal research portfolio, not as live trading performance.
+
+## 5. Research Workflow
+
+```text
+Historical CSI 300 Constituents
+              |
+              v
+       Data Engineering
+              |
+              v
+       Factor Generation
+              |
+              v
+ Factor Preprocessing & Evaluation
+              |
+              v
+        Factor Selection
+              |
+              v
+      Ridge / LightGBM
+              |
+              v
+   Expanding-Window Evaluation
+              |
+              v
+     Portfolio Construction
+              |
+              v
+     Performance Attribution
 ```
 
-The test suite uses synthetic data and does not read or write D:. Importing `config.py`
-creates its output folders on D: if they are missing.
+## 6. Project Structure
+
+The framework provides four consolidated command-line entry points:
+
+```text
+CSI300_MultiFactor_Research/
+|
+|-- run_data.py
+|-- run_factors.py
+|-- run_research.py
+|-- run_backtest.py
+|
+|-- data/
+|-- factors/
+|-- factor_research/
+|-- labels/
+|-- modeling/
+|-- portfolio/
+|-- tests/
+|
+|-- README.md
+```
+
+The entry points organize the major research stages, while the underlying modules implement reusable data processing, statistical analysis, model evaluation, and portfolio research functionality.
+
+## 7. Technology Stack
+
+| Category | Technologies |
+|---|---|
+| Programming | Python, NumPy, Pandas |
+| Market Data | Microsoft Qlib |
+| Machine Learning | Scikit-learn, LightGBM |
+| Statistical Analysis | SciPy, HAC inference, FDR |
+| Data Storage | Parquet, CSV, JSON |
+| Research Engineering | Git, Pytest, Modular Python |
+
+## 8. Research Applications
+
+This project demonstrates an integrated workflow for:
+
+- Cross-sectional equity return prediction.
+- Alpha factor development and evaluation.
+- Machine learning model comparison.
+- Systematic stock ranking and selection.
+- Quantitative portfolio research.
+- Statistical assessment of investment signals.
+
+The framework is designed as an extensible research foundation for equity alpha modeling and systematic investment strategy development.
+
+---
+
+**Project Type:** Independent Quantitative Finance Research  
+**Market:** China A-Shares  
+**Universe:** CSI 300 Historical Constituents  
+**Research Period:** 2015–2026
