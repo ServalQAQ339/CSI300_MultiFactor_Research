@@ -98,3 +98,53 @@ def load_extended_history(
         raise ValueError("Duplicate historical OHLCV rows returned")
 
     return history, window_calendar
+
+
+def fetch_qlib_features(
+    instruments: list[str],
+    fields: list[str],
+    start: str,
+    end: str,
+    batch_size: int = 80,
+    fetcher=None,
+) -> pd.DataFrame:
+    """Fetch daily Qlib fields for explicit instruments in bounded batches.
+
+    Description:
+        Query D.features batch by batch and stack the results in long format.
+
+    Parameters:
+        instruments (list[str]): Instruments to query, independent of index membership.
+        fields (list[str]): Qlib expressions such as "$open"; the "$" prefix is removed
+            from the returned column names.
+        start (str): First date, inclusive.
+        end (str): Last date, inclusive.
+        batch_size (int): Number of instruments per Qlib request.
+        fetcher (callable | None): Optional test double with D.features signature.
+
+    Returns:
+        pd.DataFrame: Columns instrument, datetime and the requested fields in request
+            order; an empty frame with these columns if Qlib returns nothing.
+
+    Notes:
+        Qlib must already be initialized by the caller. Empty batches are skipped and no
+        filling, filtering or deduplication is applied.
+    """
+    if fetcher is None:
+        from qlib.data import D
+        fetcher = D.features
+
+    names = {field: field.lstrip("$") for field in fields}
+    chunks = []
+
+    for offset in range(0, len(instruments), batch_size):
+        batch = instruments[offset:offset + batch_size]
+        part = fetcher(batch, list(fields), start_time=start, end_time=end, freq="day")
+        if part is not None and not part.empty:
+            chunks.append(part.reset_index().rename(columns=names))
+        print(f"Fetched {min(offset + batch_size, len(instruments))}/{len(instruments)} instruments",
+              flush=True)
+
+    if not chunks:
+        return pd.DataFrame(columns=["instrument", "datetime", *names.values()])
+    return pd.concat(chunks, ignore_index=True)

@@ -1,11 +1,13 @@
 # Direct dependencies of the CSI300 multi-factor research code.
-# Versions are intentionally unpinned; the code was developed and tested on
-# Python 3.12 with pandas 2.2.2, numpy 2.0.0, pyarrow 22.0.0, scipy 1.16.1,
-# pyqlib 0.9.7, akshare 1.20.21, pytest 9.2.0.
+# Versions are intentionally unpinned. The code was developed and tested on Python 3.12 with:
+# pandas 2.2.2, numpy 2.0.0, pyarrow 22.0.0, scipy 1.16.1, scikit-learn 1.9.0,
+# lightgbm 4.7.0, statsmodels 0.14.5, pyqlib 0.9.7, pytest 9.2.0.
 pandas
 numpy
-pyarrow      # Parquet engine for yearly panels
-scipy        # scipy.stats.norm in factors/factor_preprocessor.py (rank_gaussian)
-pyqlib       # imported as `qlib`; local Qlib binary data is required
-akshare      # only for factor_neutralization/exposure_data/download.py (CNINFO shares)
-pytest       # test runner
+pyarrow         # Parquet engine for yearly panels
+scipy           # norm for rank_gaussian preprocessing and HAC p-values
+scikit-learn    # Ridge models (factor_expansion, factor_selection, modeling, portfolio)
+lightgbm        # LGBMRegressor (modeling, portfolio.expanding)
+statsmodels     # Benjamini-Hochberg FDR in factor_expansion.statistics
+pyqlib          # imported as `qlib`; local Qlib binary data is required
+pytest          # test runner

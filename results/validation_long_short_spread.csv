@@ -1,0 +1,4 @@
+model,periods,mean_period_spread,annualized_arithmetic_spread,hac_t_nw_lag4,naive_t,compounded_annual_spread,max_drawdown
+ridge_original27,145,0.0043914,0.221327,1.74669,2.03408,0.226271,-0.210099
+lightgbm_original27,145,0.00596293,0.300532,2.59239,2.74564,0.326779,-0.161264
+lightgbm_extended,145,0.00202488,0.102054,0.883123,0.857422,0.0852716,-0.21429

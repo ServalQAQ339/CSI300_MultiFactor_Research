@@ -1,7 +1,7 @@
 """Unit tests for research-universe factor adjustment auditing."""
 import unittest
 import pandas as pd
-from research_factor_adjustment_audit import (
+from audits.research_factor_adjustment_audit import (
     compute_changes,
     apply_membership,
     summarize_thresholds,

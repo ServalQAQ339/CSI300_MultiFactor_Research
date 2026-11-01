@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from factors.enhanced_audit import compare_factor_frames
+from audits.enhanced_audit import compare_factor_frames
 
 
 def test_compare_factor_frames() -> None:

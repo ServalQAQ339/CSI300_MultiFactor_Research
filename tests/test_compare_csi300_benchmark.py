@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from compare_csi300_benchmark import MODELS, compare_periods
+from portfolio.benchmark import MODELS, compare_periods
 
 
 def make_periods() -> tuple[pd.DataFrame, pd.Series]:

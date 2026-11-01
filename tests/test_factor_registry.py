@@ -1,6 +1,6 @@
 """Unit tests for registry metadata and non-destructive persistence."""
 import pytest
-from factor_registry import (
+from factors.registry import (
     FACTOR_NAMES,
     build_registry,
     load_registry,

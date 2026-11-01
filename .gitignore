@@ -2,16 +2,56 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
 
 # Virtual environments and IDE files
 .venv/
 venv/
+env/
 .idea/
 .vscode/
 
-# Data and research outputs (kept on D:, never versioned)
+# Assistant notes, internal docs and non-public research code (kept locally, not published)
+CLAUDE.md
+claude.md
+.claude/
+docs/
+archive/
+exploratory/
+tests/test_archive_compatibility.py
+tests/test_exposure_data_core.py
+tests/test_exposure_pipeline.py
+tests/test_fasttrack.py
+tests/test_pit_audit.py
+
+# Data and research outputs (kept outside the repository, never versioned)
+qlib_data/
+qlib_bin/
+reports/
 *.parquet
 *.feather
 *.pkl
-*.csv
 *.h5
+*.csv
+!results/*.csv
+
+# Logs, temporary and experiment intermediate files
+*.log
+*.tmp
+tmp/
+temp/
+outputs/
+mlruns/
+
+# Local configuration and credentials
+local_config.py
+research_data/
+.env
+.env.*
+*.local.*
+secrets*
+credentials*
+*.key
+*.pem

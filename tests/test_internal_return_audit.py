@@ -1,7 +1,7 @@
 """Unit tests for internal return consistency and adjustment decomposition."""
 import unittest
 import pandas as pd
-from internal_return_audit import calculate_endpoint_checks, summarize_checks
+from audits.internal_return_audit import calculate_endpoint_checks, summarize_checks
 
 
 class TestInternalReturnAudit(unittest.TestCase):

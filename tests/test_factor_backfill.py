@@ -2,6 +2,7 @@
 # %%
 import numpy as np
 import pandas as pd
+from data.history_loader import fetch_qlib_features
 from factors.factor_backfill import generate_backfilled_year
 
 
@@ -59,3 +60,41 @@ if __name__ == "__main__":
     print("Synthetic backfill tests passed.")
 
 # %%
+
+
+def test_fetch_qlib_features_batches_and_skips_empty():
+    """Verify batched Qlib extraction, column naming and empty-batch handling.
+
+    Parameters:
+        None.
+
+    Returns:
+        None: Raises AssertionError when an invariant is violated.
+
+    Notes:
+        A fake fetcher replaces D.features; no Qlib data is read.
+    """
+    calls = []
+
+    def fetcher(instruments, fields, start_time, end_time, freq):
+        calls.append(list(instruments))
+        known = [code for code in instruments if code != "MISSING"]
+        if not known:
+            return pd.DataFrame(columns=fields)
+        index = pd.MultiIndex.from_product(
+            [known, pd.to_datetime(["2020-01-02", "2020-01-03"])],
+            names=["instrument", "datetime"],
+        )
+        return pd.DataFrame({field: 1.0 for field in fields}, index=index)
+
+    result = fetch_qlib_features(
+        ["A", "B", "MISSING"], ["$open", "$factor"], "2020-01-01", "2020-01-31",
+        batch_size=2, fetcher=fetcher,
+    )
+    assert calls == [["A", "B"], ["MISSING"]]
+    assert list(result.columns) == ["instrument", "datetime", "open", "factor"]
+    assert result["instrument"].tolist() == ["A", "A", "B", "B"]
+
+    empty = fetch_qlib_features(["MISSING"], ["$open"], "2020-01-01", "2020-01-31",
+                                fetcher=fetcher)
+    assert empty.empty and list(empty.columns) == ["instrument", "datetime", "open"]

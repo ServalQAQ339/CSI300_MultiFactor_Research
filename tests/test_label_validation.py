@@ -1,7 +1,7 @@
 """Synthetic regression tests for read-only label validators."""
 import unittest
 import pandas as pd
-from label_validation.validators import label_diagnostics, price_diagnostics
+from labels.label_validation import label_diagnostics, price_diagnostics
 
 
 class TestLabelValidation(unittest.TestCase):

@@ -1,7 +1,7 @@
 """Synthetic regression tests for independent IC/quintile consistency audit."""
 import numpy as np
 import pandas as pd
-from factor_research.consistency_audit import audit_factor, compare_saved
+from audits.consistency_audit import audit_factor, compare_saved
 
 
 def sample_panel() -> pd.DataFrame:

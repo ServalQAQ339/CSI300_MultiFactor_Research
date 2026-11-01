@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-from factor_verification.verification import (
+from audits.factor_value_verification import (
     FACTORS,
     compare_values,
     independent_factors,

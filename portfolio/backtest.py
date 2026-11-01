@@ -10,7 +10,7 @@ from modeling.modeling import (
     prepare_samples,
     selected_features,
 )
-from factor_selection.selection import load_panel
+from factor_research.selection import load_panel
 
 
 SCORES = ("ridge_original27", "lightgbm_original27", "lightgbm_extended")
@@ -136,7 +136,7 @@ def evaluate_portfolios(
 
 
 def run_backtest(
-    data_root: str,
+    data_dir: str,
     candidates: str,
     selection: str,
     provider: str,
@@ -149,7 +149,7 @@ def run_backtest(
     Description:
         Refit fixed models using Train, then evaluate next-open validation portfolios.
     Parameters:
-        data_root (str): Research data root.
+        data_dir (str): Research data directory, i.e. <project root>/data (not the project root).
         candidates (str): Candidate feature parquet.
         selection (str): Frozen Train-only feature selection CSV.
         provider (str): Qlib provider URI.
@@ -162,7 +162,7 @@ def run_backtest(
         No test period, validation tuning or claim of executable historical
         CSI300 benchmark tracking is included.
     """
-    panel, baseline, available = load_panel(data_root, candidates)
+    panel, baseline, available = load_panel(data_dir, candidates)
     chosen = selected_features(selection, available)
     train, validation = prepare_samples(panel, baseline, chosen)
     predictions = fit_predict_models(train, validation, baseline, chosen)

@@ -1,13 +1,25 @@
 """End-to-end audited Raw x 5D factor research runner."""
+import json
 from pathlib import Path
 import numpy as np
 import pandas as pd
 from .alignment import load_inputs, prepare_panel
 from .config import FACTOR_NAMES, SEGMENTS
-from .ic_analysis import daily_ic
-from .quantile_analysis import quantile_returns
-from .statistical_tests import hac_summary
-from .reporting import write_audit
+from .core import daily_ic, hac_summary, quantile_returns
+
+
+def write_audit(path, audit):
+    """Description: Write the research audit as human-readable JSON.
+
+    Parameters:
+        path (Path): Destination JSON path.
+        audit (dict): Audited counts and research limitations.
+    Returns:
+        None: Writes the JSON file.
+    Notes:
+        Parent output directory must already exist.
+    """
+    path.write_text(json.dumps(audit, indent=2), encoding='utf-8')
 
 
 def run(root: Path, output: Path, min_n: int = 30):

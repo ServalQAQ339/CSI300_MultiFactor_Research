@@ -3,16 +3,34 @@
 Central configuration for the CSI300 multi-factor stock selection project.
 
 This module defines research dates, Qlib data paths, output directories,
-model validation periods, and initial portfolio parameters.
+model validation periods, and initial portfolio parameters. Importing it has no
+filesystem side effects; each writer creates its own output folder.
+
+Path resolution, highest priority first: the CSI300_DATA_ROOT and CSI300_QLIB_DIR environment
+variables; DEFAULT_DATA_ROOT and DEFAULT_QLIB_DATA_DIR in an optional, untracked local_config.py
+next to this file; otherwise <repository>/research_data and the standard Qlib location
+~/.qlib/qlib_data/cn_data. CLI path defaults across the project are derived from these values.
 """
 
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-DATA_ROOT = Path(r"D:\QuantResearch\CSI300_MultiFactor_Research")
-QLIB_DATA_DIR = Path(r"D:\QuantResearch\qlib_data\cn_data\qlib_bin")
 
-DATA_OUTPUT_DIR = DATA_ROOT / "data" / "processed"
+try:
+    # Machine-specific defaults; local_config.py is git-ignored.
+    from local_config import DEFAULT_DATA_ROOT, DEFAULT_QLIB_DATA_DIR
+except ImportError:
+    DEFAULT_DATA_ROOT = str(PROJECT_ROOT / "research_data")
+    DEFAULT_QLIB_DATA_DIR = str(Path.home() / ".qlib" / "qlib_data" / "cn_data")
+
+# Project data root (the --data-root meaning) and Qlib binary provider.
+DATA_ROOT = Path(os.environ.get("CSI300_DATA_ROOT", DEFAULT_DATA_ROOT))
+QLIB_DATA_DIR = Path(os.environ.get("CSI300_QLIB_DIR", DEFAULT_QLIB_DATA_DIR))
+
+# The data subfolder (the --data-dir meaning).
+DATA_DIR = DATA_ROOT / "data"
+DATA_OUTPUT_DIR = DATA_DIR / "processed"
 REPORT_OUTPUT_DIR = DATA_ROOT / "reports"
 AUDIT_OUTPUT_DIR = REPORT_OUTPUT_DIR / "data_quality"
 
@@ -37,6 +55,3 @@ TEST_END = END_DATE
 HORIZON = 1
 TOPK = 30
 N_DROP = 5
-
-for directory in [DATA_OUTPUT_DIR, REPORT_OUTPUT_DIR, AUDIT_OUTPUT_DIR]:
-    directory.mkdir(parents=True, exist_ok=True)

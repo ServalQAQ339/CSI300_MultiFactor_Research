@@ -7,7 +7,8 @@ import pandas as pd
 from lightgbm import LGBMRegressor
 from sklearn.linear_model import Ridge
 
-from factor_selection.selection import TRAIN, VALIDATION, hac_report, load_panel
+from factors.expansion.statistics import cross_sectional_ranks, hac_summary
+from factor_research.selection import TRAIN, VALIDATION, load_panel
 
 
 BASE_PARAMS = {
@@ -87,22 +88,6 @@ def prepare_samples(panel: pd.DataFrame, baseline: list[str], selected: list[str
     return train, validation
 
 
-def cross_sectional_ranks(frame: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
-    """Rank numeric columns independently within each trading date.
-
-    Description:
-        Map each date's cross-section to centered percentile ranks.
-    Parameters:
-        frame (pd.DataFrame): Stock-date panel with datetime index level.
-        columns (list[str]): Predictor or label columns to transform.
-    Returns:
-        pd.DataFrame: Same-index rank-transformed columns.
-    Notes:
-        Features use same-day information; targets are ranked only for fitting.
-    """
-    return frame.groupby(level="datetime")[columns].rank(pct=True) - 0.5
-
-
 def fit_predict_models(train: pd.DataFrame, validation: pd.DataFrame,
                        baseline: list[str], selected: list[str]) -> pd.DataFrame:
     """Fit three fixed-specification models and return Validation scores.
@@ -165,18 +150,18 @@ def evaluate_predictions(predictions: pd.DataFrame, min_stocks: int = 30
     daily = pd.DataFrame(rows).set_index("datetime")
     daily["delta_nonlinear"] = daily["lightgbm_original27"] - daily["ridge_original27"]
     daily["delta_expansion"] = daily["lightgbm_extended"] - daily["lightgbm_original27"]
-    summary = hac_report(daily[names + ["delta_nonlinear", "delta_expansion"]], lags=5)
+    summary = hac_summary(daily[names + ["delta_nonlinear", "delta_expansion"]], lags=5, fdr=False)
     return daily, summary
 
 
-def run_modeling(data_root: str, candidate_file: str, selection_file: str,
+def run_modeling(data_dir: str, candidate_file: str, selection_file: str,
                  output_dir: str) -> None:
     """Execute the fixed three-model experiment and save concise outputs.
 
     Description:
         Reuse Stage 4 data loading and selection, then evaluate matched models.
     Parameters:
-        data_root (str): Existing research data root on D drive.
+        data_dir (str): Research data directory, i.e. <project root>/data (not the project root).
         candidate_file (str): Existing factor expansion Parquet file.
         selection_file (str): Stage 4 Train-selected feature CSV file.
         output_dir (str): New report directory for Stage 5 results.
@@ -185,7 +170,7 @@ def run_modeling(data_root: str, candidate_file: str, selection_file: str,
     Notes:
         Validation has been inspected before; results are not blind-test claims.
     """
-    panel, baseline, candidates = load_panel(data_root, candidate_file)
+    panel, baseline, candidates = load_panel(data_dir, candidate_file)
     chosen = selected_features(selection_file, candidates)
     train, validation = prepare_samples(panel, baseline, chosen)
     predictions = fit_predict_models(train, validation, baseline, chosen)

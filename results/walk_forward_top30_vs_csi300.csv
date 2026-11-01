@@ -1,0 +1,4 @@
+model,periods,strategy_annualized,benchmark_annualized,annualized_return_difference,relative_wealth_final
+ridge_original27,131,-0.027344346,0.06240499,-0.089749336,0.795005
+lightgbm_original27,131,0.07899189,0.06240499,0.0165869,1.0410886
+lightgbm_extended,131,0.1054914,0.06240499,0.04308641,1.1088583

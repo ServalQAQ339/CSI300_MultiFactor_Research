@@ -2,7 +2,7 @@
 import unittest
 import numpy as np
 import pandas as pd
-from price_missingness_attribution import classify_price, prepare_audit, attribute_prices
+from audits.price_missingness_attribution import classify_price, prepare_audit, attribute_prices
 
 
 class TestPriceMissingnessAttribution(unittest.TestCase):

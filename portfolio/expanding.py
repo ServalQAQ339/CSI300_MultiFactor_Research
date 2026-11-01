@@ -170,14 +170,14 @@ def simulate(scores: pd.DataFrame, opens: pd.DataFrame, index_open: pd.Series,
     return periods, pd.DataFrame(summary)
 
 
-def run(data_root: str, candidates: str, selection: str, provider: str,
+def run(data_dir: str, candidates: str, selection: str, provider: str,
         output: str, top_k: int = 30, cost_bps: float = 10.0) -> None:
     """Run the quarterly diagnostic using existing data and frozen models.
 
     Description:
         Load factor panel, fetch prices and calendar, score quarters, simulate.
     Parameters:
-        data_root (str): Existing D-drive data root.
+        data_dir (str): Research data directory, i.e. <project root>/data (not the project root).
         candidates (str): Existing candidate parquet path.
         selection (str): Frozen Train-only selection CSV.
         provider (str): Qlib binary data directory.
@@ -192,7 +192,7 @@ def run(data_root: str, candidates: str, selection: str, provider: str,
     import qlib
     from qlib.data import D
 
-    root = Path(data_root)
+    root = Path(data_dir)
     files = sorted((root / "factors_preprocessed" / "raw").glob("csi300_factors_20??.parquet"))
     original = pd.concat([pd.read_parquet(path) for path in files]).sort_index()
     expansion = pd.read_parquet(candidates).sort_index()

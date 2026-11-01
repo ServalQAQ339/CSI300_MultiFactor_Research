@@ -1,7 +1,7 @@
 """Synthetic tests for calendar-preserving HAC statistics."""
 import numpy as np
 import pandas as pd
-from factor_research.statistical_tests import hac_summary
+from factor_research.core import hac_summary
 
 
 def test_constant_ic_mean():
