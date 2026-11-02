@@ -14,18 +14,24 @@ TRAIN = ("2015-04-01", "2020-12-31")
 VALIDATION = ("2021-01-01", "2023-12-31")
 
 
-def load_panel(data_dir: str, candidate_file: str) -> tuple[pd.DataFrame, list[str], list[str]]:
-    """Load frozen baseline, expansion features and valid forward labels.
+def load_panel(data_dir: str, candidate_file: str, require_valid_label: bool = True
+               ) -> tuple[pd.DataFrame, list[str], list[str]]:
+    """Load frozen baseline, expansion features and forward labels.
 
     Description:
-        Join unique stock-date observations and filter invalid label statuses.
+        Join unique stock-date observations and handle invalid label statuses.
     Parameters:
         data_dir (str): Research data directory, i.e. <project root>/data (not the project root).
         candidate_file (str): Path to the existing candidate parquet file.
+        require_valid_label (bool): True (default, Stage 4 behavior) drops rows whose 5-day
+            label is missing or whose status is not 'ok'. False keeps every factor row and
+            sets label_5d to NaN where the status is not 'ok'.
     Returns:
         tuple: Joined panel, baseline names and candidate names.
     Notes:
-        Historical universe PIT status is not independently certified.
+        Historical universe PIT status is not independently certified. Label validity
+        depends on future prices, so prediction samples must use require_valid_label=False
+        and apply label filters only to fitting and ex-post evaluation.
     """
     baseline_frame = load_original27(data_dir)
     candidates_frame = pd.read_parquet(candidate_file).sort_index()
@@ -46,7 +52,12 @@ def load_panel(data_dir: str, candidate_file: str) -> tuple[pd.DataFrame, list[s
 
     panel = baseline_frame.join(candidates_frame[candidates], how="left", validate="one_to_one")
     panel = panel.join(labels[["label_5d", "label_status_5d"]], how="left", validate="one_to_one")
-    panel = panel.loc[panel["label_status_5d"].eq("ok") & panel["label_5d"].notna()]
+    valid_label = panel["label_status_5d"].eq("ok") & panel["label_5d"].notna()
+    if require_valid_label:
+        panel = panel.loc[valid_label]
+    else:
+        panel = panel.copy()
+        panel.loc[~valid_label, "label_5d"] = np.nan
     panel = panel.replace([np.inf, -np.inf], np.nan)
     return panel, baseline, candidates
 

@@ -4,7 +4,40 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
+import factor_research.selection as selection
 from factor_research.selection import _pooled_rank_corr, compare_ridge, select_features
+
+
+def test_load_panel_label_filter_modes(tmp_path, monkeypatch) -> None:
+    """Verify the default keeps Stage 4 filtering and the opt-out keeps all rows.
+
+    Description:
+        Mock the factor and label loaders with a three-row synthetic panel.
+    Parameters:
+        tmp_path (pathlib.Path): Pytest temporary directory for the candidate file.
+        monkeypatch (pytest.MonkeyPatch): Replaces file-based loaders.
+    Returns:
+        None: Assertions check retained rows and label masking.
+    Notes:
+        require_valid_label=False must never drop factor rows.
+    """
+    index = pd.MultiIndex.from_product([[pd.Timestamp("2021-01-04")], ["A", "B", "C"]],
+                                       names=["datetime", "instrument"])
+    base = pd.DataFrame({"BASE": [1.0, 2.0, 3.0]}, index=index)
+    labels = pd.DataFrame({"label_5d": [0.1, 0.2, np.nan],
+                           "label_status_5d": ["ok", "invalid_exit_price", "split_boundary"]},
+                          index=index)
+    pd.DataFrame({"EXTRA": [4.0, 5.0, 6.0]}, index=index).to_parquet(tmp_path / "c.parquet")
+    monkeypatch.setattr(selection, "load_original27", lambda data_dir: base)
+    monkeypatch.setattr(selection, "load_forward_labels", lambda data_dir, required: labels)
+
+    strict, baseline, candidates = selection.load_panel("unused", str(tmp_path / "c.parquet"))
+    assert strict.index.get_level_values("instrument").tolist() == ["A"]
+    assert baseline == ["BASE"] and candidates == ["EXTRA"]
+    loose, _, _ = selection.load_panel("unused", str(tmp_path / "c.parquet"),
+                                       require_valid_label=False)
+    assert len(loose) == 3
+    assert loose["label_5d"].isna().tolist() == [False, True, True]
 
 
 def make_panel(seed: int = 10) -> pd.DataFrame:

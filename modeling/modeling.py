@@ -57,9 +57,12 @@ def prepare_samples(panel: pd.DataFrame, baseline: list[str], selected: list[str
     """Construct identical finite-feature samples for all three models.
 
     Description:
-        Apply one complete-case mask to Train and Validation separately.
+        Train rows require complete features and a valid label. Validation
+        prediction rows require complete features only; label_5d is carried
+        along (possibly NaN) for ex-post evaluation.
     Parameters:
-        panel (pd.DataFrame): Joined factor and valid-label panel.
+        panel (pd.DataFrame): Joined factor and label panel, with label_5d set to
+            NaN for invalid statuses (load_panel(..., require_valid_label=False)).
         baseline (list[str]): Original27 feature names.
         selected (list[str]): Frozen additional feature names.
         min_stocks (int): Minimum cross-sectional observations per date.
@@ -68,11 +71,15 @@ def prepare_samples(panel: pd.DataFrame, baseline: list[str], selected: list[str
     Notes:
         Training labels must be mature before Validation starts; the 5-day
         horizon is conservatively purged using the last five Train dates.
+        Validation membership never depends on future label availability; the
+        Validation min_stocks rule counts feature-complete (predictable) stocks.
     """
-    columns = baseline + selected + ["label_5d"]
+    features = baseline + selected
+    columns = features + ["label_5d"]
     dates = panel.index.get_level_values("datetime")
     train = panel.loc[(dates >= TRAIN[0]) & (dates <= TRAIN[1]), columns].dropna()
-    validation = panel.loc[(dates >= VALIDATION[0]) & (dates <= VALIDATION[1]), columns].dropna()
+    validation = panel.loc[(dates >= VALIDATION[0]) & (dates <= VALIDATION[1]), columns]
+    validation = validation.dropna(subset=features)
     if train.empty or validation.empty:
         raise ValueError("No complete-case rows in Train or Validation")
 
@@ -96,13 +103,16 @@ def fit_predict_models(train: pd.DataFrame, validation: pd.DataFrame,
         Fit Ridge Original27, LightGBM Original27 and LightGBM Extended.
     Parameters:
         train (pd.DataFrame): Purged training complete-case panel.
-        validation (pd.DataFrame): Validation complete-case panel.
+        validation (pd.DataFrame): Validation feature-complete panel; label_5d may be NaN.
         baseline (list[str]): Original27 feature names.
         selected (list[str]): Train-selected expansion feature names.
     Returns:
-        pd.DataFrame: Three scores and the future-return label per observation.
+        pd.DataFrame: Three scores and the future-return label (NaN if invalid)
+            for every predictable Validation observation.
     Notes:
         No early stopping, Validation-based tuning or future-date fitting occurs.
+        Validation feature ranks use the full same-day predictable cross-section,
+        so scores do not depend on future label validity.
     """
     features = baseline + selected
     x_train = cross_sectional_ranks(train, features)
@@ -123,27 +133,37 @@ def fit_predict_models(train: pd.DataFrame, validation: pd.DataFrame,
 
 def evaluate_predictions(predictions: pd.DataFrame, min_stocks: int = 30
                          ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Calculate matched daily Rank IC and paired HAC inference.
+    """Calculate matched daily Rank IC, rank MSE and paired HAC inference.
 
     Description:
-        Rank scores and labels by date and compare both model differences.
+        After scores exist, keep rows with a valid ex-post label, rank scores and
+        labels within that subsample by date and compare both model differences.
     Parameters:
-        predictions (pd.DataFrame): Same-row model predictions and labels.
-        min_stocks (int): Minimum stocks required for a daily correlation.
+        predictions (pd.DataFrame): Same-row model predictions and labels; label_5d
+            is NaN where the realized label is invalid.
+        min_stocks (int): Minimum valid-label stocks required for a daily correlation.
     Returns:
-        tuple[pd.DataFrame, pd.DataFrame]: Daily IC and HAC summary tables.
+        tuple[pd.DataFrame, pd.DataFrame]: Daily IC/MSE and HAC summary tables.
+            Daily n_predicted counts all scored rows; n_stocks counts the evaluated
+            valid-label rows.
     Notes:
-        Daily IC differences use identical observations for all models.
+        Daily IC differences use identical observations for all models. Rows with
+        missing labels are excluded from evaluation only, never from prediction.
+        mse_<model> compares scores with centered percentile label ranks, the
+        training target scale.
     """
     names = ["ridge_original27", "lightgbm_original27", "lightgbm_extended"]
     rows = []
     for date, day in predictions.groupby(level="datetime", sort=True):
-        if len(day) < min_stocks:
+        labeled = day.dropna(subset=["label_5d"])
+        if len(labeled) < min_stocks:
             continue
-        ranked = day[names + ["label_5d"]].rank()
-        row = {"datetime": date, "n_stocks": len(day)}
+        ranked = labeled[names + ["label_5d"]].rank()
+        target = labeled["label_5d"].rank(pct=True) - 0.5
+        row = {"datetime": date, "n_predicted": len(day), "n_stocks": len(labeled)}
         for name in names:
             row[name] = ranked[name].corr(ranked["label_5d"])
+            row[f"mse_{name}"] = ((labeled[name] - target) ** 2).mean()
         rows.append(row)
     if not rows:
         raise ValueError("No eligible Validation dates")
@@ -166,11 +186,13 @@ def run_modeling(data_dir: str, candidate_file: str, selection_file: str,
         selection_file (str): Stage 4 Train-selected feature CSV file.
         output_dir (str): New report directory for Stage 5 results.
     Returns:
-        None: Writes daily IC, summary and experiment metadata.
+        None: Writes full Validation predictions, daily IC, summary and metadata.
     Notes:
         Validation has been inspected before; results are not blind-test claims.
+        Labels are loaded without row filtering so that the prediction universe
+        never depends on future label validity.
     """
-    panel, baseline, candidates = load_panel(data_dir, candidate_file)
+    panel, baseline, candidates = load_panel(data_dir, candidate_file, require_valid_label=False)
     chosen = selected_features(selection_file, candidates)
     train, validation = prepare_samples(panel, baseline, chosen)
     predictions = fit_predict_models(train, validation, baseline, chosen)
@@ -178,11 +200,14 @@ def run_modeling(data_dir: str, candidate_file: str, selection_file: str,
 
     destination = Path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
+    predictions.to_parquet(destination / "validation_predictions.parquet")
     daily.to_csv(destination / "validation_daily_ic.csv")
     summary.to_csv(destination / "validation_model_summary.csv", index=False)
     pd.DataFrame({"selected_feature": chosen}).to_csv(
         destination / "frozen_selected_features.csv", index=False
     )
-    print(f"Train rows (purged): {len(train):,}; Validation rows: {len(validation):,}")
+    labeled = predictions["label_5d"].notna().sum()
+    print(f"Train rows (purged): {len(train):,}; Validation predicted rows: "
+          f"{len(predictions):,}; with valid labels: {labeled:,}")
     print(f"Selected expansion features: {len(chosen)}; Validation days: {len(daily)}")
     print(summary.to_string(index=False))
